@@ -16,7 +16,7 @@
  * @module analyzer
  */
 
-import type { BoundingBox, WireframeNode, WireframeModel, AnalyzerConfig } from './types.js';
+import type { BoundingBox, WireframeNode, WireframeModel, AnalyzerConfig, SemanticType } from './types.js';
 
 /** Semantic landmark tags - these are ALWAYS significant */
 const LANDMARK_TAGS = new Set([
@@ -304,6 +304,29 @@ function generateLabel(el: HTMLElement): string {
 }
 
 /**
+ * Classify element into a semantic type for color coding.
+ * Uses tag name, label, and ARIA role to determine the type.
+ */
+function getSemanticType(el: HTMLElement, label: string): SemanticType {
+  const tagName = el.tagName.toLowerCase();
+  const role = el.getAttribute('role');
+
+  // Tag-based classification
+  if (tagName === 'header' || role === 'banner') return 'header';
+  if (tagName === 'nav' || role === 'navigation') return 'navigation';
+  if (tagName === 'footer' || role === 'contentinfo') return 'footer';
+
+  // Label-based classification
+  const lowerLabel = label.toLowerCase();
+  if (/hero|banner/.test(lowerLabel)) return 'hero';
+  if (/card|feature|service|testimonial|team|benefit/.test(lowerLabel)) return 'card';
+  if (/cta|call.?to.?action|contact|newsletter/.test(lowerLabel)) return 'cta';
+  if (/nav|menu/.test(lowerLabel)) return 'navigation';
+
+  return 'content';
+}
+
+/**
  * Check if bboxes are similar (for wrapper collapse).
  */
 function bboxesSimilar(a: BoundingBox, b: BoundingBox): boolean {
@@ -373,14 +396,16 @@ function buildNodeTree(
   }
 
   // Create node for this element
+  const label = generateLabel(el);
   const node: WireframeNode = {
     id: generateNodeId(),
     tagName: el.tagName.toLowerCase(),
-    label: generateLabel(el),
+    label,
     bbox,
     depth,
     children: childNodes,
     isLandmark: isLandmark(el),
+    semanticType: getSemanticType(el, label),
   };
 
   return node;

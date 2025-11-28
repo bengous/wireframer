@@ -13,7 +13,18 @@
  * @module renderer
  */
 
-import type { WireframeNode, WireframeModel, RendererConfig } from './types.js';
+import type { WireframeNode, WireframeModel, RendererConfig, SemanticType } from './types.js';
+
+/** Pastel colors for semantic differentiation */
+const SEMANTIC_COLORS: Record<SemanticType, string> = {
+  header: '#e8eaf6',     // Indigo tint
+  navigation: '#e3f2fd', // Blue tint
+  hero: '#f3e5f5',       // Purple tint
+  content: '#f5f5f5',    // Light gray
+  card: '#fffde7',       // Yellow tint
+  cta: '#e8f5e9',        // Green tint
+  footer: '#eceff1',     // Dark gray
+};
 
 const DEFAULT_RENDERER_CONFIG: RendererConfig = {
   showLabels: false, // Default off per user preference
@@ -35,13 +46,12 @@ function getBorderWidth(depth: number): number {
 }
 
 /**
- * Get a slightly different fill color based on depth for visual hierarchy.
+ * Get fill color based on semantic type, with depth-based darkening.
  */
-function getFillColor(depth: number, baseColor: string): string {
-  // Darken slightly for deeper levels
-  const darkenAmount = Math.min(depth * 8, 40);
+function getFillColor(semanticType: SemanticType, depth: number): string {
+  const baseColor = SEMANTIC_COLORS[semanticType];
+  const darkenAmount = Math.min(depth * 5, 20);
 
-  // Parse hex color
   const hex = baseColor.replace('#', '');
   const r = Math.max(0, parseInt(hex.slice(0, 2), 16) - darkenAmount);
   const g = Math.max(0, parseInt(hex.slice(2, 4), 16) - darkenAmount);
@@ -75,6 +85,51 @@ function drawRoundedRect(
 }
 
 /**
+ * Render a label badge with solid dark background.
+ */
+function renderLabelBadge(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  fontSize: number
+): void {
+  const paddingX = 6;
+  const paddingY = 3;
+  const badgeRadius = 3;
+
+  ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+
+  // Truncate label if needed
+  let displayLabel = label;
+  let textWidth = ctx.measureText(displayLabel).width;
+  const maxTextWidth = maxWidth - paddingX * 2 - 16; // Leave some margin
+
+  while (textWidth > maxTextWidth && displayLabel.length > 3) {
+    displayLabel = displayLabel.slice(0, -1);
+    textWidth = ctx.measureText(displayLabel + '...').width;
+  }
+  if (displayLabel !== label) {
+    displayLabel += '...';
+    textWidth = ctx.measureText(displayLabel).width;
+  }
+
+  const badgeWidth = textWidth + paddingX * 2;
+  const badgeHeight = fontSize + paddingY * 2;
+
+  // Draw badge background
+  ctx.fillStyle = '#333333';
+  drawRoundedRect(ctx, x, y, badgeWidth, badgeHeight, badgeRadius);
+  ctx.fill();
+
+  // Draw text
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'top';
+  ctx.fillText(displayLabel, x + paddingX, y + paddingY);
+}
+
+/**
  * Render a single wireframe node.
  */
 function renderNode(
@@ -82,7 +137,7 @@ function renderNode(
   node: WireframeNode,
   config: RendererConfig
 ): void {
-  const { bbox, depth, label, isLandmark } = node;
+  const { bbox, depth, label, isLandmark, semanticType } = node;
   const borderWidth = getBorderWidth(depth);
   const cornerRadius = 4;
 
@@ -95,8 +150,8 @@ function renderNode(
   // Skip very small boxes
   if (w < 10 || h < 10) return;
 
-  // Draw fill
-  ctx.fillStyle = getFillColor(depth, config.blockFillColor);
+  // Draw fill with semantic color
+  ctx.fillStyle = getFillColor(semanticType, depth);
   drawRoundedRect(ctx, x, y, w, h, cornerRadius);
   ctx.fill();
 
@@ -117,32 +172,11 @@ function renderNode(
   // Reset line dash
   ctx.setLineDash([]);
 
-  // Draw label if enabled and box is large enough
-  if (config.showLabels && w > 60 && h > 20) {
-    const labelPadding = 8;
-    const fontSize = Math.min(config.labelFontSize, h - labelPadding * 2);
-
-    if (fontSize >= 8) {
-      ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-      ctx.fillStyle = config.labelColor;
-      ctx.textBaseline = 'top';
-
-      // Truncate label if too long
-      const maxLabelWidth = w - labelPadding * 2;
-      let displayLabel = label;
-      let textWidth = ctx.measureText(displayLabel).width;
-
-      while (textWidth > maxLabelWidth && displayLabel.length > 3) {
-        displayLabel = displayLabel.slice(0, -1);
-        textWidth = ctx.measureText(displayLabel + '...').width;
-      }
-
-      if (displayLabel !== label) {
-        displayLabel += '...';
-      }
-
-      ctx.fillText(displayLabel, x + labelPadding, y + labelPadding);
-    }
+  // Draw label badge if enabled and box is large enough
+  if (config.showLabels && w > 60 && h > 30) {
+    const fontSize = Math.min(config.labelFontSize, 11);
+    const badgePadding = 8;
+    renderLabelBadge(ctx, label, x + badgePadding, y + badgePadding, w - badgePadding * 2, fontSize);
   }
 }
 

@@ -12,6 +12,18 @@
  */
 
 /**
+ * Semantic classification for visual differentiation in rendered wireframes.
+ */
+export type SemanticType =
+  | 'header'
+  | 'navigation'
+  | 'hero'
+  | 'content'
+  | 'card'
+  | 'cta'
+  | 'footer';
+
+/**
  * Bounding box in absolute page coordinates (not viewport-relative).
  * Origin (0,0) is top-left of the full page.
  */
@@ -40,6 +52,8 @@ export interface WireframeNode {
   children: WireframeNode[];
   /** True if this is a semantic landmark (header, nav, main, etc.) */
   isLandmark: boolean;
+  /** Semantic classification for color coding */
+  semanticType: SemanticType;
 }
 
 /**
