@@ -17,6 +17,22 @@
 export type SemanticType = "header" | "navigation" | "hero" | "content" | "card" | "cta" | "footer";
 
 /**
+ * Content element type for placeholder rendering.
+ */
+export type ContentType = "image" | "button" | "text" | "icon";
+
+/**
+ * Detected content element within a wireframe node.
+ * Used to render visual placeholders (crossed boxes for images, pills for buttons, etc.)
+ */
+export interface ContentHint {
+	type: ContentType;
+	bbox: BoundingBox;
+	/** Optional label for buttons */
+	label?: string;
+}
+
+/**
  * Bounding box in absolute page coordinates (not viewport-relative).
  * Origin (0,0) is top-left of the full page.
  */
@@ -47,6 +63,8 @@ export interface WireframeNode {
 	isLandmark: boolean;
 	/** Semantic classification for color coding */
 	semanticType: SemanticType;
+	/** Content placeholders to render inside this node */
+	contentHints?: ContentHint[];
 }
 
 /**
@@ -98,6 +116,8 @@ export interface RendererConfig {
 	labelFontSize: number;
 	/** Custom label overrides by node ID. Empty string hides the label. */
 	labelOverrides?: Map<string, string>;
+	/** Show content placeholders (images, buttons, text, icons). Default: true */
+	showContentHints?: boolean;
 }
 
 /**

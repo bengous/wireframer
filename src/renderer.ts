@@ -15,6 +15,7 @@
 
 import type {
 	BadgeInfo,
+	ContentHint,
 	RendererConfig,
 	SemanticType,
 	WireframeModel,
@@ -39,6 +40,7 @@ const DEFAULT_RENDERER_CONFIG: RendererConfig = {
 	blockBorderColor: "#333333",
 	labelColor: "#333333",
 	labelFontSize: 12,
+	showContentHints: true, // Show content placeholders by default
 };
 
 /**
@@ -88,6 +90,189 @@ function drawRoundedRect(
 	ctx.lineTo(x, y + radius);
 	ctx.quadraticCurveTo(x, y, x + radius, y);
 	ctx.closePath();
+}
+
+/**
+ * Draw a pill shape (rounded rectangle with full-radius ends).
+ */
+function drawPillShape(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+): void {
+	const radius = height / 2;
+	ctx.beginPath();
+	ctx.moveTo(x + radius, y);
+	ctx.lineTo(x + width - radius, y);
+	ctx.arc(x + width - radius, y + radius, radius, -Math.PI / 2, Math.PI / 2);
+	ctx.lineTo(x + radius, y + height);
+	ctx.arc(x + radius, y + radius, radius, Math.PI / 2, -Math.PI / 2);
+	ctx.closePath();
+}
+
+/**
+ * Render an image placeholder (box with diagonal cross).
+ */
+function renderImagePlaceholder(
+	ctx: CanvasRenderingContext2D,
+	hint: ContentHint,
+): void {
+	const { x, y, width, height } = hint.bbox;
+	const padding = 2;
+	const px = x + padding;
+	const py = y + padding;
+	const pw = width - padding * 2;
+	const ph = height - padding * 2;
+
+	if (pw < 10 || ph < 10) return;
+
+	// Draw border
+	ctx.strokeStyle = "#999999";
+	ctx.lineWidth = 1;
+	ctx.setLineDash([]);
+	drawRoundedRect(ctx, px, py, pw, ph, 4);
+	ctx.stroke();
+
+	// Draw diagonal cross
+	ctx.beginPath();
+	ctx.moveTo(px, py);
+	ctx.lineTo(px + pw, py + ph);
+	ctx.moveTo(px + pw, py);
+	ctx.lineTo(px, py + ph);
+	ctx.stroke();
+}
+
+/**
+ * Render a button placeholder (pill shape).
+ */
+function renderButtonPlaceholder(
+	ctx: CanvasRenderingContext2D,
+	hint: ContentHint,
+): void {
+	const { x, y, width, height } = hint.bbox;
+
+	if (width < 20 || height < 10) return;
+
+	// Draw filled pill
+	ctx.fillStyle = "#e0e0e0";
+	drawPillShape(ctx, x, y, width, height);
+	ctx.fill();
+
+	// Draw border
+	ctx.strokeStyle = "#666666";
+	ctx.lineWidth = 1;
+	ctx.setLineDash([]);
+	drawPillShape(ctx, x, y, width, height);
+	ctx.stroke();
+
+	// Draw label if available
+	if (hint.label && width > 40) {
+		ctx.font = `${Math.min(11, height - 6)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+		ctx.fillStyle = "#333333";
+		ctx.textBaseline = "middle";
+		ctx.textAlign = "center";
+
+		const maxTextWidth = width - 16;
+		let displayLabel = hint.label;
+		if (ctx.measureText(displayLabel).width > maxTextWidth) {
+			while (displayLabel.length > 3 && ctx.measureText(`${displayLabel}...`).width > maxTextWidth) {
+				displayLabel = displayLabel.slice(0, -1);
+			}
+			displayLabel += "...";
+		}
+
+		ctx.fillText(displayLabel, x + width / 2, y + height / 2);
+		ctx.textAlign = "left"; // Reset
+	}
+}
+
+/**
+ * Render a text block placeholder (horizontal lines).
+ */
+function renderTextPlaceholder(
+	ctx: CanvasRenderingContext2D,
+	hint: ContentHint,
+): void {
+	const { x, y, width, height } = hint.bbox;
+	const padding = 4;
+	const lineHeight = 8;
+	const lineSpacing = 12;
+	const maxLines = Math.min(4, Math.floor((height - padding * 2) / lineSpacing));
+
+	if (maxLines < 1 || width < 30) return;
+
+	ctx.strokeStyle = "#cccccc";
+	ctx.lineWidth = 2;
+	ctx.lineCap = "round";
+	ctx.setLineDash([]);
+
+	for (let i = 0; i < maxLines; i++) {
+		const lineY = y + padding + i * lineSpacing + lineHeight / 2;
+		// Last line is shorter
+		const lineWidth = i === maxLines - 1 ? (width - padding * 2) * 0.6 : width - padding * 2;
+
+		ctx.beginPath();
+		ctx.moveTo(x + padding, lineY);
+		ctx.lineTo(x + padding + lineWidth, lineY);
+		ctx.stroke();
+	}
+
+	ctx.lineCap = "butt"; // Reset
+}
+
+/**
+ * Render an icon placeholder (small circle).
+ */
+function renderIconPlaceholder(
+	ctx: CanvasRenderingContext2D,
+	hint: ContentHint,
+): void {
+	const { x, y, width, height } = hint.bbox;
+	const cx = x + width / 2;
+	const cy = y + height / 2;
+	const radius = Math.min(width, height) / 2 - 1;
+
+	if (radius < 4) return;
+
+	ctx.strokeStyle = "#999999";
+	ctx.lineWidth = 1;
+	ctx.setLineDash([]);
+
+	ctx.beginPath();
+	ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+	ctx.stroke();
+}
+
+/**
+ * Render all content hints for a node.
+ * Z-order: text (back) → images → buttons → icons (front)
+ */
+function renderContentHints(
+	ctx: CanvasRenderingContext2D,
+	hints: ContentHint[],
+): void {
+	// Sort by type for consistent z-order
+	const typeOrder = { text: 0, image: 1, button: 2, icon: 3 };
+	const sorted = [...hints].sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
+
+	for (const hint of sorted) {
+		switch (hint.type) {
+			case "image":
+				renderImagePlaceholder(ctx, hint);
+				break;
+			case "button":
+				renderButtonPlaceholder(ctx, hint);
+				break;
+			case "text":
+				renderTextPlaceholder(ctx, hint);
+				break;
+			case "icon":
+				renderIconPlaceholder(ctx, hint);
+				break;
+		}
+	}
 }
 
 /**
@@ -181,6 +366,11 @@ function renderNode(
 
 	// Reset line dash
 	ctx.setLineDash([]);
+
+	// Draw content hints if enabled
+	if (config.showContentHints !== false && node.contentHints?.length) {
+		renderContentHints(ctx, node.contentHints);
+	}
 
 	// Draw label badge if enabled and box is large enough
 	if (config.showLabels && w > 60 && h > 30) {

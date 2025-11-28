@@ -19,6 +19,8 @@
 import type {
 	AnalyzerConfig,
 	BoundingBox,
+	ContentHint,
+	ContentType,
 	SemanticType,
 	WireframeModel,
 	WireframeNode,
@@ -172,6 +174,22 @@ const DEFAULT_CONFIG: AnalyzerConfig = {
 
 /** Smaller minimum area for grid items (50x50) */
 const GRID_ITEM_MIN_AREA = 2500;
+
+/** Minimum sizes for content hint detection */
+const CONTENT_MIN_SIZES = {
+	image: { width: 30, height: 30 },
+	button: { width: 50, height: 20 },
+	text: { width: 50, height: 10 },
+	icon: { width: 12, height: 12 },
+};
+
+/** Max content hints per node per type */
+const CONTENT_MAX_COUNTS = {
+	image: 5,
+	button: 3,
+	text: 1,
+	icon: 6,
+};
 
 let nodeIdCounter = 0;
 
@@ -487,6 +505,161 @@ function getSemanticType(el: HTMLElement, label: string): SemanticType {
 }
 
 /**
+ * Check if an element is a button or button-like link.
+ */
+function isButtonElement(el: Element): boolean {
+	const tagName = el.tagName.toLowerCase();
+	if (tagName === "button") return true;
+	if (tagName === "input") {
+		const type = el.getAttribute("type");
+		return type === "submit" || type === "button";
+	}
+	if (tagName === "a") {
+		const role = el.getAttribute("role");
+		if (role === "button") return true;
+		const className = el.className;
+		if (typeof className === "string") {
+			return /\b(btn|button|cta)\b/i.test(className);
+		}
+	}
+	return false;
+}
+
+/**
+ * Check if an element is an icon (small SVG or icon font).
+ */
+function isIconElement(el: Element): boolean {
+	const tagName = el.tagName.toLowerCase();
+	if (tagName === "svg") {
+		const rect = el.getBoundingClientRect();
+		// Small SVGs (under 400px area = 20x20) are icons
+		return rect.width * rect.height <= 400;
+	}
+	if (tagName === "i" || tagName === "span") {
+		const className = el.className;
+		if (typeof className === "string") {
+			return /\b(icon|fa-|bi-|material-icons)\b/i.test(className);
+		}
+	}
+	return false;
+}
+
+/**
+ * Detect content elements within a node and return hints for rendering.
+ * Scans for images, buttons, text blocks, and icons.
+ */
+function detectContentHints(el: HTMLElement): ContentHint[] {
+	const hints: ContentHint[] = [];
+	const counts: Record<ContentType, number> = { image: 0, button: 0, text: 0, icon: 0 };
+
+	// Helper to add hint if within limits
+	const addHint = (type: ContentType, bbox: BoundingBox, label?: string) => {
+		const minSize = CONTENT_MIN_SIZES[type];
+		const maxCount = CONTENT_MAX_COUNTS[type];
+
+		if (bbox.width < minSize.width || bbox.height < minSize.height) return;
+		if (counts[type] >= maxCount) return;
+
+		hints.push({ type, bbox, label });
+		counts[type]++;
+	};
+
+	// Detect images: <img>, <picture>, <figure>, large <svg>
+	const images = el.querySelectorAll("img, picture, figure");
+	for (const img of images) {
+		if (!(img instanceof HTMLElement)) continue;
+		if (!isElementVisible(img)) continue;
+
+		const bbox = getAbsoluteBoundingBox(img);
+		addHint("image", bbox);
+	}
+
+	// Large SVGs are images (small ones are icons, handled below)
+	const svgs = el.querySelectorAll("svg");
+	for (const svg of svgs) {
+		if (!(svg instanceof SVGElement)) continue;
+
+		const rect = svg.getBoundingClientRect();
+		if (rect.width === 0 || rect.height === 0) continue;
+
+		const area = rect.width * rect.height;
+		if (area > 400) {
+			// Large SVG = image
+			const bbox = getAbsoluteBoundingBox(svg as unknown as HTMLElement);
+			addHint("image", bbox);
+		}
+	}
+
+	// Detect buttons
+	const buttons = el.querySelectorAll("button, a, input[type='submit'], input[type='button']");
+	for (const btn of buttons) {
+		if (!(btn instanceof HTMLElement)) continue;
+		if (!isButtonElement(btn)) continue;
+		if (!isElementVisible(btn)) continue;
+
+		const bbox = getAbsoluteBoundingBox(btn);
+		const label = btn.textContent?.trim().slice(0, 20) || undefined;
+		addHint("button", bbox, label);
+	}
+
+	// Detect icons (small SVGs, icon fonts)
+	for (const svg of svgs) {
+		if (!(svg instanceof SVGElement)) continue;
+		if (isIconElement(svg)) {
+			const bbox = getAbsoluteBoundingBox(svg as unknown as HTMLElement);
+			addHint("icon", bbox);
+		}
+	}
+
+	const iconFonts = el.querySelectorAll("i, span");
+	for (const icon of iconFonts) {
+		if (!(icon instanceof HTMLElement)) continue;
+		if (!isIconElement(icon)) continue;
+		if (!isElementVisible(icon)) continue;
+
+		const bbox = getAbsoluteBoundingBox(icon);
+		addHint("icon", bbox);
+	}
+
+	// Detect text blocks: collapse all <p> and headings into one hint
+	const textElements = el.querySelectorAll("p, h1, h2, h3, h4, h5, h6");
+	if (textElements.length > 0 && counts.text < CONTENT_MAX_COUNTS.text) {
+		// Find bounding box that encompasses all text
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		let hasVisibleText = false;
+
+		for (const text of textElements) {
+			if (!(text instanceof HTMLElement)) continue;
+			if (!isElementVisible(text)) continue;
+
+			const rect = text.getBoundingClientRect();
+			if (rect.width < 20 || rect.height < 10) continue;
+
+			hasVisibleText = true;
+			const bbox = getAbsoluteBoundingBox(text);
+			minX = Math.min(minX, bbox.x);
+			minY = Math.min(minY, bbox.y);
+			maxX = Math.max(maxX, bbox.x + bbox.width);
+			maxY = Math.max(maxY, bbox.y + bbox.height);
+		}
+
+		if (hasVisibleText && minX !== Infinity) {
+			addHint("text", {
+				x: minX,
+				y: minY,
+				width: maxX - minX,
+				height: maxY - minY,
+			});
+		}
+	}
+
+	return hints;
+}
+
+/**
  * Check if bboxes are similar (for wrapper collapse).
  */
 function bboxesSimilar(a: BoundingBox, b: BoundingBox): boolean {
@@ -599,6 +772,7 @@ function buildNodeTree(
 
 	// Create node for this element
 	const label = isGridItem ? inferGridItemLabel(el) : generateLabel(el);
+	const contentHints = detectContentHints(el);
 	const node: WireframeNode = {
 		id: generateNodeId(),
 		tagName: el.tagName.toLowerCase(),
@@ -608,6 +782,7 @@ function buildNodeTree(
 		children: childNodes,
 		isLandmark: isLandmark(el),
 		semanticType: isGridItem ? "card" : getSemanticType(el, label),
+		contentHints: contentHints.length > 0 ? contentHints : undefined,
 	};
 
 	return node;

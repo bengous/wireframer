@@ -62,7 +62,7 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
 ### Module Responsibilities
 
 **Source (src/):**
-- **types.ts**: Type definitions (`BoundingBox`, `WireframeNode`, `WireframeModel`, `SemanticType`, `BadgeInfo`, config interfaces)
+- **types.ts**: Type definitions (`BoundingBox`, `WireframeNode`, `WireframeModel`, `SemanticType`, `ContentType`, `ContentHint`, `BadgeInfo`, config interfaces)
 - **analyzer.ts**: DOM traversal and element selection. Contains heuristics for:
   - Landmark detection (semantic tags + ARIA roles)
   - Class pattern matching for labels (`STRUCTURAL_CLASS_PATTERNS`)
@@ -71,11 +71,13 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
   - Heading-based label inference (falls back to h1-h3 content)
   - Semantic type classification for color coding (`getSemanticType()`)
   - Grid/flex layout detection (`detectGridItems()`) - finds card grids, feature sections, etc.
+  - Content hint detection (`detectContentHints()`) - finds images, buttons, text blocks, and icons within nodes
 - **renderer.ts**: Canvas drawing with:
   - Semantic color fills (header=indigo, nav=blue, hero=purple, cards=yellow, cta=green, footer=gray)
   - Depth-based visual styling (border thickness, dashed vs solid lines)
   - Label badges with dark background (#333) and white text
   - Badge position tracking for click detection
+  - Content hint placeholders: crossed boxes for images, pills for buttons, horizontal lines for text, circles for icons
 - **main.ts**: Overlay UI, state management, event handlers:
   - Auto-scales canvas to fit viewport (CSS transform, preserves full resolution for export)
   - Inline label editing (click badge → input field → Enter/Escape)
@@ -98,3 +100,4 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
 - Canvas scales to fit viewport but exports at full resolution
 - Label editing uses inline input field (click badge to edit, empty to hide)
 - Grid/flex detection: Row-direction flex and CSS grid containers with 2+ similarly-sized children are detected as card grids. Grid items become leaf nodes with 'card' semantic type (yellow). Landmarks (header, nav, footer, etc.) are excluded from grid detection and processed normally.
+- Content hints: Detects images (30x30px min), buttons (50x20px min), text blocks, and icons (12x12px min) within wireframe nodes. Rendered as placeholders: crossed boxes for images, gray pills for buttons, horizontal lines for text, circles for icons. Toggle via `showContentHints` config (default: true).
