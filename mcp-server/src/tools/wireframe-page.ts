@@ -11,6 +11,7 @@ import { join } from "path";
 import { gatherDom } from "../browser/dom-gatherer.js";
 import { generateModel } from "../ai/model-generator.js";
 import { renderToFile } from "../render/canvas-renderer.js";
+import { log, logError } from "../utils/logger.js";
 
 export interface WireframePageOptions {
 	/** URL to wireframe */
@@ -39,8 +40,8 @@ export interface WireframePageResult {
 }
 
 /** Log to stderr for debugging (MCP uses stdout for protocol) */
-function log(message: string): void {
-	console.error(`[wireframe-mapper] ${message}`);
+function logStep(message: string): void {
+	log("wireframe-page", message);
 }
 
 /**
@@ -58,21 +59,21 @@ export async function wireframePage(
 		showContentHints = true,
 	} = options;
 
-	log(`Starting wireframe for: ${url}`);
+	logStep(`Starting wireframe for: ${url}`);
 	const startTime = Date.now();
 
 	// 1. Gather DOM data via Playwright
-	log("Step 1/4: Launching Playwright...");
+	logStep("Step 1/4: Launching Playwright...");
 	const domData = await gatherDom(url, {
 		width: viewportWidth,
 		height: viewportHeight,
 	});
-	log(`Step 1/4: Done - extracted ${domData.elements.length} elements (${Date.now() - startTime}ms)`);
+	logStep(`Step 1/4: Done - extracted ${domData.elements.length} elements (${Date.now() - startTime}ms)`);
 
 	// 2. Generate model via Claude CLI (uses Max subscription)
-	log("Step 2/4: Calling Claude CLI...");
+	logStep("Step 2/4: Calling Claude CLI...");
 	const model = await generateModel(domData, instructions);
-	log(`Step 2/4: Done - generated ${model.nodes.length} sections (${Date.now() - startTime}ms)`);
+	logStep(`Step 2/4: Done - generated ${model.nodes.length} sections (${Date.now() - startTime}ms)`);
 
 	// 3. Determine output path
 	const outputPath =
@@ -80,12 +81,12 @@ export async function wireframePage(
 		join(process.cwd(), ".wireframe", `wireframe-${Date.now()}.png`);
 
 	// 4. Render to PNG with node-canvas
-	log("Step 3/4: Rendering to PNG...");
+	logStep("Step 3/4: Rendering to PNG...");
 	await renderToFile(model, outputPath, {
 		showLabels,
 		showContentHints,
 	});
-	log(`Step 3/4: Done - saved to ${outputPath} (${Date.now() - startTime}ms)`);
+	logStep(`Step 3/4: Done - saved to ${outputPath} (${Date.now() - startTime}ms)`);
 
 	// 5. Collect section labels
 	const sections: string[] = [];

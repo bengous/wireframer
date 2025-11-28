@@ -101,3 +101,63 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
 - Label editing uses inline input field (click badge to edit, empty to hide)
 - Grid/flex detection: Row-direction flex and CSS grid containers with 2+ similarly-sized children are detected as card grids. Grid items become leaf nodes with 'card' semantic type (yellow). Landmarks (header, nav, footer, etc.) are excluded from grid detection and processed normally.
 - Content hints: Detects images (30x30px min), buttons (50x20px min), text blocks, and icons (12x12px min) within wireframe nodes. Rendered as placeholders: crossed boxes for images, gray pills for buttons, horizontal lines for text, circles for icons. Toggle via `showContentHints` config (default: true).
+
+## MCP Server (AI-Driven Wireframes)
+
+An MCP server that uses Claude AI for semantic understanding instead of heuristic-based DOM analysis.
+
+### Build & Test
+
+```bash
+cd mcp-server
+pnpm install
+pnpm run build
+```
+
+### Architecture
+
+```
+URL → Playwright (DOM extraction) → Claude CLI (semantic analysis) → node-canvas (render) → PNG
+```
+
+**Key modules:**
+- **browser/dom-gatherer.ts**: Extracts DOM data via Playwright's `page.evaluate()`
+- **ai/prompt-builder.ts**: Builds structured prompts with DOM data for Claude
+- **ai/model-generator.ts**: Spawns Claude CLI to generate WireframeModel
+- **render/canvas-renderer.ts**: Server-side canvas rendering with node-canvas
+- **tools/wireframe-page.ts**: Orchestrates the full pipeline
+
+### Claude CLI Integration
+
+Uses Claude CLI (not SDK) to leverage existing Max subscription - no API key needed.
+
+**Critical flags:**
+```typescript
+spawn("claude", [
+  "--print",
+  "--output-format", "json",
+  "--tools", "",              // Disable tools for speed
+  "--model", "sonnet",
+  "--setting-sources", ""     // CRITICAL: prevents hang when spawned from MCP
+])
+```
+
+The `--setting-sources ""` flag is essential - without it, Claude CLI hangs when spawned from within another Claude Code process (known issue: [GitHub #6775](https://github.com/anthropics/claude-code/issues/6775)).
+
+### MCP Configuration
+
+Configured in `.mcp.json`:
+```json
+{
+  "mcpServers": {
+    "wireframe-mapper": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
+### Shared Types
+
+Types shared between browser tool and MCP server live in `shared/types.ts`. Both `src/types.ts` and MCP server import from there.

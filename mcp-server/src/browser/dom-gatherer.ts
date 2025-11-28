@@ -8,6 +8,7 @@
 import { chromium, type Browser } from "playwright";
 import type { DomData, DomElement } from "../types/dom-data.js";
 import type { BoundingBox } from "../../../shared/types.js";
+import { log, logError } from "../utils/logger.js";
 
 /** Minimum element size to include (50x50 = 2500px²) */
 const MIN_ELEMENT_AREA = 2500;
@@ -61,19 +62,27 @@ export async function gatherDom(
 ): Promise<DomData> {
 	const { width = 1280, height = 800, waitForNetworkIdle = true } = options;
 
+	log("dom-gatherer", "gatherDom called", { url, width, height, waitForNetworkIdle });
+
 	let browser: Browser | null = null;
 
 	try {
+		log("dom-gatherer", "Launching Chromium...");
 		browser = await chromium.launch({ headless: true });
+		log("dom-gatherer", "Browser launched");
+
 		const page = await browser.newPage({
 			viewport: { width, height },
 		});
+		log("dom-gatherer", "Page created with viewport", { width, height });
 
 		// Navigate to URL
+		log("dom-gatherer", `Navigating to ${url}...`);
 		await page.goto(url, {
 			waitUntil: waitForNetworkIdle ? "networkidle" : "domcontentloaded",
 			timeout: 30000,
 		});
+		log("dom-gatherer", "Navigation complete");
 
 		// Extract DOM data in a single page.evaluate() call
 		// This minimizes context usage by avoiding multiple round-trips
@@ -273,10 +282,19 @@ export async function gatherDom(
 			}
 		);
 
+		log("dom-gatherer", "DOM extraction complete", {
+			elementCount: domData.elements.length,
+			fullPageHeight: domData.fullPageHeight,
+		});
 		return domData as DomData;
+	} catch (error) {
+		logError("dom-gatherer", "Failed to gather DOM", error);
+		throw error;
 	} finally {
 		if (browser) {
+			log("dom-gatherer", "Closing browser...");
 			await browser.close();
+			log("dom-gatherer", "Browser closed");
 		}
 	}
 }

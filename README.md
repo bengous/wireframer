@@ -175,10 +175,34 @@ pnpm run serve       # Dev server only (no watch)
 - **Static snapshot** - Captures current state, not dynamic content
 - **Tailwind-heavy sites** - Works but relies on heading inference for labels
 
+## MCP Server (AI-Driven)
+
+An alternative approach using Claude AI for semantic understanding instead of heuristic-based DOM analysis.
+
+```bash
+cd mcp-server
+pnpm install
+pnpm run build
+```
+
+Configure in `.mcp.json`:
+```json
+{
+  "mcpServers": {
+    "wireframe-mapper": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
+Uses Claude CLI with your Max subscription - no API key needed. See [mcp-server/README.md](mcp-server/README.md) for details.
+
 ## Future Improvements
 
 - [ ] Excalidraw export format
 - [ ] Depth slider control
 - [ ] Multiple viewport sizes
 - [ ] Bookmarklet version
-- [ ] Content visualization (image placeholders, text lines, button shapes)
+- [x] Content visualization (image placeholders, text lines, button shapes)

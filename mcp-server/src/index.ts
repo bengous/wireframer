@@ -10,12 +10,23 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { wireframePage } from "./tools/wireframe-page.js";
+import { log, logError, logSeparator, getLogPath } from "./utils/logger.js";
+
+logSeparator("MCP SERVER STARTUP");
+log("index", "Initializing MCP server", {
+	pid: process.pid,
+	cwd: process.cwd(),
+	nodeVersion: process.version,
+	logFile: getLogPath(),
+});
 
 // Create MCP server
 const server = new McpServer({
 	name: "wireframe-mapper",
 	version: "0.1.0",
 });
+
+log("index", "MCP server instance created");
 
 // Register wireframe_page tool
 server.tool(
@@ -59,7 +70,20 @@ server.tool(
 		show_content_hints,
 		output_path,
 	}) => {
+		logSeparator("TOOL INVOCATION: wireframe_page");
+		log("index", "Tool called with params", {
+			url,
+			viewport_width,
+			viewport_height,
+			instructions,
+			show_labels,
+			show_content_hints,
+			output_path,
+		});
+
+		const startTime = Date.now();
 		try {
+			log("index", "Calling wireframePage...");
 			const result = await wireframePage({
 				url,
 				viewportWidth: viewport_width,
@@ -68,6 +92,12 @@ server.tool(
 				showLabels: show_labels,
 				showContentHints: show_content_hints,
 				outputPath: output_path,
+			});
+
+			const duration = Date.now() - startTime;
+			log("index", `Tool completed successfully in ${duration}ms`, {
+				imagePath: result.imagePath,
+				sectionsCount: result.sections.length,
 			});
 
 			return {
@@ -79,6 +109,9 @@ server.tool(
 				],
 			};
 		} catch (error) {
+			const duration = Date.now() - startTime;
+			logError("index", `Tool failed after ${duration}ms`, error);
+
 			const message =
 				error instanceof Error ? error.message : "Unknown error occurred";
 			return {
@@ -96,12 +129,16 @@ server.tool(
 
 // Start server
 async function main() {
+	log("index", "Creating StdioServerTransport...");
 	const transport = new StdioServerTransport();
+	log("index", "Connecting to transport...");
 	await server.connect(transport);
-	console.error("Wireframe Mapper MCP server running");
+	log("index", "Server connected and running");
+	console.error(`Wireframe Mapper MCP server running (log: ${getLogPath()})`);
 }
 
 main().catch((error) => {
+	logError("index", "Failed to start MCP server", error);
 	console.error("Failed to start MCP server:", error);
 	process.exit(1);
 });
