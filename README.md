@@ -133,17 +133,28 @@ The tool recognizes these class name patterns for automatic labeling:
 ## Development
 
 ```bash
-# Install dependencies
-pnpm install
+pnpm install      # Install dependencies
+pnpm run dev      # Start dev mode (watch + server)
+pnpm run build    # Production build (minified)
+```
 
-# Build (minified, for production use)
-pnpm run build
+### Recommended: Tampermonkey Workflow
 
-# Build with sourcemaps (for debugging)
-pnpm run build:dev
+For rapid iteration, use the included Tampermonkey userscript:
 
-# Watch mode
-pnpm run watch
+1. Install [Tampermonkey](https://www.tampermonkey.net/) browser extension
+2. Create new userscript and paste contents of `scripts/wireframe-mapper.user.js`
+3. Run `pnpm run dev`
+4. Press **Alt+W** on any page to trigger the wireframe tool
+
+Changes are picked up automatically - edit code, save, press Alt+W again.
+
+### Other Commands
+
+```bash
+pnpm run build:dev   # Build with sourcemaps
+pnpm run watch       # Watch mode only (no server)
+pnpm run serve       # Dev server only (no watch)
 ```
 
 ## Limitations
