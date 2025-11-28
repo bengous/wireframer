@@ -306,6 +306,7 @@ function areChildrenSimilarlySized(children: HTMLElement[], tolerance: number = 
 /**
  * Detect if an element is a grid/flex container with grid-like children.
  * Returns the children that should become grid item nodes, or null if not a grid.
+ * Excludes landmark elements (header, nav, footer, etc.) - they should be processed normally.
  */
 function detectGridItems(el: HTMLElement): HTMLElement[] | null {
 	if (!isGridOrFlexContainer(el)) return null;
@@ -313,10 +314,14 @@ function detectGridItems(el: HTMLElement): HTMLElement[] | null {
 	const children = getVisibleChildren(el);
 	if (children.length < 2) return null;
 
-	if (!areChildrenSimilarlySized(children)) return null;
+	// Exclude landmarks - they should be processed as normal nodes, not grid items
+	const nonLandmarkChildren = children.filter((child) => !isLandmark(child));
+	if (nonLandmarkChildren.length < 2) return null;
+
+	if (!areChildrenSimilarlySized(nonLandmarkChildren)) return null;
 
 	// Filter children by minimum grid item size
-	const validChildren = children.filter((child) => {
+	const validChildren = nonLandmarkChildren.filter((child) => {
 		const rect = child.getBoundingClientRect();
 		return rect.width * rect.height >= GRID_ITEM_MIN_AREA;
 	});
@@ -516,7 +521,7 @@ function buildNodeTree(
 	const gridItems = significant && !isGridItem ? detectGridItems(el) : null;
 
 	if (gridItems) {
-		// Process grid items - they bypass isSignificant() and become cards (leaf nodes)
+		// Process grid items as cards (leaf nodes)
 		for (const gridChild of gridItems) {
 			const gridItemNode = buildNodeTree(
 				gridChild,
@@ -527,6 +532,21 @@ function buildNodeTree(
 			);
 			if (gridItemNode) {
 				childNodes.push(gridItemNode);
+			}
+		}
+		// Also process landmark children normally (they were excluded from gridItems)
+		for (const child of Array.from(el.children)) {
+			if (child instanceof HTMLElement && isLandmark(child)) {
+				const landmarkNode = buildNodeTree(
+					child,
+					depth + 1,
+					viewportArea,
+					config,
+					false,
+				);
+				if (landmarkNode) {
+					childNodes.push(landmarkNode);
+				}
 			}
 		}
 	} else if (!isGridItem) {

@@ -70,6 +70,7 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
   - Wrapper collapse logic (skips parents when child occupies >85% area)
   - Heading-based label inference (falls back to h1-h3 content)
   - Semantic type classification for color coding (`getSemanticType()`)
+  - Grid/flex layout detection (`detectGridItems()`) - finds card grids, feature sections, etc.
 - **renderer.ts**: Canvas drawing with:
   - Semantic color fills (header=indigo, nav=blue, hero=purple, cards=yellow, cta=green, footer=gray)
   - Depth-based visual styling (border thickness, dashed vs solid lines)
@@ -96,3 +97,4 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
 - Semantic color coding makes different section types visually distinct
 - Canvas scales to fit viewport but exports at full resolution
 - Label editing uses inline input field (click badge to edit, empty to hide)
+- Grid/flex detection: Row-direction flex and CSS grid containers with 2+ similarly-sized children are detected as card grids. Grid items become leaf nodes with 'card' semantic type (yellow). Landmarks (header, nav, footer, etc.) are excluded from grid detection and processed normally.
