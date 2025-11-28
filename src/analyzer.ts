@@ -545,10 +545,33 @@ function isIconElement(el: Element): boolean {
 }
 
 /**
+ * Get bounding box for any Element (works with both HTML and SVG elements).
+ */
+function getElementBoundingBox(el: Element): BoundingBox {
+	const rect = el.getBoundingClientRect();
+	return {
+		x: rect.left + window.scrollX,
+		y: rect.top + window.scrollY,
+		width: rect.width,
+		height: rect.height,
+	};
+}
+
+/**
  * Detect content elements within a node and return hints for rendering.
  * Scans for images, buttons, text blocks, and icons.
+ * Wrapped in try-catch to prevent breaking node creation on errors.
  */
 function detectContentHints(el: HTMLElement): ContentHint[] {
+	try {
+		return detectContentHintsUnsafe(el);
+	} catch (e) {
+		console.warn("detectContentHints failed:", e);
+		return [];
+	}
+}
+
+function detectContentHintsUnsafe(el: HTMLElement): ContentHint[] {
 	const hints: ContentHint[] = [];
 	const counts: Record<ContentType, number> = { image: 0, button: 0, text: 0, icon: 0 };
 
@@ -585,7 +608,7 @@ function detectContentHints(el: HTMLElement): ContentHint[] {
 		const area = rect.width * rect.height;
 		if (area > 400) {
 			// Large SVG = image
-			const bbox = getAbsoluteBoundingBox(svg as unknown as HTMLElement);
+			const bbox = getElementBoundingBox(svg);
 			addHint("image", bbox);
 		}
 	}
@@ -606,7 +629,7 @@ function detectContentHints(el: HTMLElement): ContentHint[] {
 	for (const svg of svgs) {
 		if (!(svg instanceof SVGElement)) continue;
 		if (isIconElement(svg)) {
-			const bbox = getAbsoluteBoundingBox(svg as unknown as HTMLElement);
+			const bbox = getElementBoundingBox(svg);
 			addHint("icon", bbox);
 		}
 	}
