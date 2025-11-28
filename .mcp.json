@@ -2,7 +2,7 @@
   "mcpServers": {
     "wireframe-mapper": {
       "command": "node",
-      "args": ["./mcp-server/dist/index.js"]
+      "args": ["/home/b3ngous/projects/wireframe-mapper/mcp-server/dist/index.js"]
     }
   }
 }

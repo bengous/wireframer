@@ -73,10 +73,9 @@ export async function generateModel(
 	await writeFile(tempFile, prompt, "utf-8");
 
 	try {
-		// Spawn Claude CLI
+		// Spawn Claude CLI with prompt piped via stdin
 		const result = await new Promise<string>((resolve, reject) => {
-			// Use cat to pipe the prompt file to claude
-			const claude = spawn("claude", ["--print", "-p", prompt], {
+			const claude = spawn("claude", ["--print"], {
 				stdio: ["pipe", "pipe", "pipe"],
 				env: { ...process.env },
 			});
@@ -105,6 +104,10 @@ export async function generateModel(
 			claude.on("error", (error) => {
 				reject(new Error(`Failed to spawn Claude CLI: ${error.message}`));
 			});
+
+			// Write prompt to stdin and close
+			claude.stdin.write(prompt);
+			claude.stdin.end();
 		});
 
 		// Extract and parse JSON from response
