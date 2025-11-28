@@ -103,4 +103,18 @@ export interface RendererConfig {
   labelColor: string;
   /** Base font size for labels */
   labelFontSize: number;
+  /** Custom label overrides by node ID. Empty string hides the label. */
+  labelOverrides?: Map<string, string>;
+}
+
+/**
+ * Badge position info for click detection.
+ */
+export interface BadgeInfo {
+  nodeId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label: string;
 }

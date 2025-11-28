@@ -13,7 +13,7 @@
  * @module renderer
  */
 
-import type { WireframeNode, WireframeModel, RendererConfig, SemanticType } from './types.js';
+import type { WireframeNode, WireframeModel, RendererConfig, SemanticType, BadgeInfo } from './types.js';
 
 /** Pastel colors for semantic differentiation */
 const SEMANTIC_COLORS: Record<SemanticType, string> = {
@@ -86,6 +86,7 @@ function drawRoundedRect(
 
 /**
  * Render a label badge with solid dark background.
+ * Returns badge dimensions for click detection.
  */
 function renderLabelBadge(
   ctx: CanvasRenderingContext2D,
@@ -94,7 +95,7 @@ function renderLabelBadge(
   y: number,
   maxWidth: number,
   fontSize: number
-): void {
+): { width: number; height: number; displayLabel: string } {
   const paddingX = 6;
   const paddingY = 3;
   const badgeRadius = 3;
@@ -127,17 +128,20 @@ function renderLabelBadge(
   ctx.fillStyle = '#ffffff';
   ctx.textBaseline = 'top';
   ctx.fillText(displayLabel, x + paddingX, y + paddingY);
+
+  return { width: badgeWidth, height: badgeHeight, displayLabel };
 }
 
 /**
  * Render a single wireframe node.
+ * Returns badge info if a label was rendered, null otherwise.
  */
 function renderNode(
   ctx: CanvasRenderingContext2D,
   node: WireframeNode,
   config: RendererConfig
-): void {
-  const { bbox, depth, label, isLandmark, semanticType } = node;
+): BadgeInfo | null {
+  const { id, bbox, depth, label, isLandmark, semanticType } = node;
   const borderWidth = getBorderWidth(depth);
   const cornerRadius = 4;
 
@@ -148,7 +152,7 @@ function renderNode(
   const h = bbox.height - borderWidth;
 
   // Skip very small boxes
-  if (w < 10 || h < 10) return;
+  if (w < 10 || h < 10) return null;
 
   // Draw fill with semantic color
   ctx.fillStyle = getFillColor(semanticType, depth);
@@ -174,26 +178,47 @@ function renderNode(
 
   // Draw label badge if enabled and box is large enough
   if (config.showLabels && w > 60 && h > 30) {
+    // Check for label override (empty string = hidden)
+    const overriddenLabel = config.labelOverrides?.get(id);
+    const displayLabel = overriddenLabel !== undefined ? overriddenLabel : label;
+
+    // Skip if label is empty (hidden)
+    if (displayLabel === '') return null;
+
     const fontSize = Math.min(config.labelFontSize, 11);
     const badgePadding = 8;
-    renderLabelBadge(ctx, label, x + badgePadding, y + badgePadding, w - badgePadding * 2, fontSize);
+    const badgeX = x + badgePadding;
+    const badgeY = y + badgePadding;
+    const badge = renderLabelBadge(ctx, displayLabel, badgeX, badgeY, w - badgePadding * 2, fontSize);
+
+    return {
+      nodeId: id,
+      x: badgeX,
+      y: badgeY,
+      width: badge.width,
+      height: badge.height,
+      label: displayLabel,
+    };
   }
+
+  return null;
 }
 
 /**
  * Recursively render nodes (children first, then parent - for proper layering).
+ * Collects badge info for click detection.
  */
 function renderNodeTree(
   ctx: CanvasRenderingContext2D,
   nodes: WireframeNode[],
-  config: RendererConfig
+  config: RendererConfig,
+  badges: BadgeInfo[]
 ): void {
-  // Sort by depth (render deeper nodes first so parents overlay them)
-  // Actually, we want parents drawn first, children on top
   for (const node of nodes) {
-    renderNode(ctx, node, config);
+    const badge = renderNode(ctx, node, config);
+    if (badge) badges.push(badge);
     // Render children on top
-    renderNodeTree(ctx, node.children, config);
+    renderNodeTree(ctx, node.children, config, badges);
   }
 }
 
@@ -210,12 +235,13 @@ export function createCanvas(model: WireframeModel): HTMLCanvasElement {
 
 /**
  * Render the wireframe model to a canvas.
+ * Returns badge positions for click detection.
  */
 export function renderWireframe(
   model: WireframeModel,
   canvas: HTMLCanvasElement,
   config: Partial<RendererConfig> = {}
-): void {
+): BadgeInfo[] {
   const mergedConfig: RendererConfig = { ...DEFAULT_RENDERER_CONFIG, ...config };
 
   const ctx = canvas.getContext('2d');
@@ -227,8 +253,11 @@ export function renderWireframe(
   ctx.fillStyle = mergedConfig.backgroundColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Render all nodes
-  renderNodeTree(ctx, model.nodes, mergedConfig);
+  // Render all nodes and collect badge positions
+  const badges: BadgeInfo[] = [];
+  renderNodeTree(ctx, model.nodes, mergedConfig, badges);
+
+  return badges;
 }
 
 /**

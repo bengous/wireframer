@@ -17,7 +17,7 @@
 
 import { analyzeDom } from './analyzer.js';
 import { createCanvas, renderWireframe, downloadCanvasAsPng } from './renderer.js';
-import type { WireframeModel, RendererConfig } from './types.js';
+import type { WireframeModel, RendererConfig, BadgeInfo } from './types.js';
 
 const OVERLAY_ID = 'wireframe-mapper-overlay';
 
@@ -25,12 +25,18 @@ interface WireframeMapperState {
   model: WireframeModel | null;
   canvas: HTMLCanvasElement | null;
   showLabels: boolean;
+  labelOverrides: Map<string, string>;
+  badges: BadgeInfo[];
+  canvasContainer: HTMLDivElement | null;
 }
 
 const state: WireframeMapperState = {
   model: null,
   canvas: null,
-  showLabels: false, // Default off
+  showLabels: false,
+  labelOverrides: new Map(),
+  badges: [],
+  canvasContainer: null,
 };
 
 /**
@@ -164,9 +170,100 @@ function rerender(): void {
 
   const config: Partial<RendererConfig> = {
     showLabels: state.showLabels,
+    labelOverrides: state.labelOverrides,
   };
 
-  renderWireframe(state.model, state.canvas, config);
+  state.badges = renderWireframe(state.model, state.canvas, config);
+}
+
+/**
+ * Find which badge was clicked based on canvas coordinates.
+ */
+function findBadgeAtPosition(canvasX: number, canvasY: number): BadgeInfo | null {
+  // Search in reverse order (top-most badges first)
+  for (let i = state.badges.length - 1; i >= 0; i--) {
+    const badge = state.badges[i];
+    if (
+      canvasX >= badge.x &&
+      canvasX <= badge.x + badge.width &&
+      canvasY >= badge.y &&
+      canvasY <= badge.y + badge.height
+    ) {
+      return badge;
+    }
+  }
+  return null;
+}
+
+/**
+ * Show inline input for editing a label.
+ */
+function showLabelEditor(badge: BadgeInfo): void {
+  if (!state.canvas || !state.canvasContainer) return;
+
+  // Remove any existing editor
+  hideLabelEditor();
+
+  const canvasRect = state.canvas.getBoundingClientRect();
+  const containerRect = state.canvasContainer.getBoundingClientRect();
+
+  // Calculate position relative to container, accounting for scroll
+  const scrollLeft = state.canvasContainer.parentElement?.scrollLeft || 0;
+  const scrollTop = state.canvasContainer.parentElement?.scrollTop || 0;
+  const canvasOffsetX = canvasRect.left - containerRect.left + scrollLeft;
+  const canvasOffsetY = canvasRect.top - containerRect.top + scrollTop;
+
+  const input = document.createElement('input');
+  input.id = 'wireframe-label-editor';
+  input.type = 'text';
+  input.value = badge.label;
+  input.placeholder = 'Empty to hide';
+  input.style.cssText = `
+    position: absolute;
+    left: ${canvasOffsetX + badge.x}px;
+    top: ${canvasOffsetY + badge.y}px;
+    min-width: ${Math.max(badge.width, 120)}px;
+    height: ${badge.height}px;
+    padding: 0 6px;
+    border: 2px solid #2563eb;
+    border-radius: 3px;
+    background: #333;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 11px;
+    outline: none;
+    z-index: 1000002;
+  `;
+
+  const saveEdit = () => {
+    const newLabel = input.value.trim();
+    if (newLabel !== badge.label) {
+      state.labelOverrides.set(badge.nodeId, newLabel);
+      rerender();
+    }
+    hideLabelEditor();
+  };
+
+  input.addEventListener('blur', saveEdit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      hideLabelEditor();
+    }
+  });
+
+  state.canvasContainer.appendChild(input);
+  input.focus();
+  input.select();
+}
+
+/**
+ * Hide the label editor input.
+ */
+function hideLabelEditor(): void {
+  const editor = document.getElementById('wireframe-label-editor');
+  if (editor) editor.remove();
 }
 
 /**
@@ -197,10 +294,13 @@ function createOverlay(): void {
   const canvas = createCanvas(model);
   state.canvas = canvas;
 
-  // Render wireframe
-  renderWireframe(model, canvas, { showLabels: state.showLabels });
+  // Render wireframe and store badge positions
+  state.badges = renderWireframe(model, canvas, {
+    showLabels: state.showLabels,
+    labelOverrides: state.labelOverrides,
+  });
 
-  // Create canvas container (for scrolling)
+  // Create canvas container (for scrolling and positioning editor)
   const canvasContainer = document.createElement('div');
   canvasContainer.style.cssText = `
     min-height: 100%;
@@ -208,14 +308,34 @@ function createOverlay(): void {
     justify-content: center;
     padding: 40px 20px;
     box-sizing: border-box;
+    position: relative;
   `;
   canvasContainer.appendChild(canvas);
+  state.canvasContainer = canvasContainer;
 
   // Add shadow to canvas for visual separation
   canvas.style.cssText += `
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     border-radius: 8px;
   `;
+
+  // Add click handler for label editing
+  canvas.addEventListener('click', (e) => {
+    if (!state.showLabels) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+
+    const badge = findBadgeAtPosition(canvasX, canvasY);
+    if (badge) {
+      showLabelEditor(badge);
+    } else {
+      hideLabelEditor();
+    }
+  });
 
   // Create control bar
   const controlBar = createControlBar(removeOverlay);
@@ -252,6 +372,9 @@ function removeOverlay(): void {
     existing.remove();
     state.model = null;
     state.canvas = null;
+    state.canvasContainer = null;
+    state.badges = [];
+    state.labelOverrides.clear();
     console.log('[Wireframe Mapper] Overlay closed.');
   }
 }
