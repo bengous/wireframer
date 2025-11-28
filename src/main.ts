@@ -28,6 +28,7 @@ interface WireframeMapperState {
   labelOverrides: Map<string, string>;
   badges: BadgeInfo[];
   canvasContainer: HTMLDivElement | null;
+  canvasScale: number;
 }
 
 const state: WireframeMapperState = {
@@ -37,6 +38,7 @@ const state: WireframeMapperState = {
   labelOverrides: new Map(),
   badges: [],
   canvasContainer: null,
+  canvasScale: 1,
 };
 
 /**
@@ -206,12 +208,19 @@ function showLabelEditor(badge: BadgeInfo): void {
 
   const canvasRect = state.canvas.getBoundingClientRect();
   const containerRect = state.canvasContainer.getBoundingClientRect();
+  const scale = state.canvasScale;
 
-  // Calculate position relative to container, accounting for scroll
+  // Calculate position relative to container, accounting for scroll and scale
   const scrollLeft = state.canvasContainer.parentElement?.scrollLeft || 0;
   const scrollTop = state.canvasContainer.parentElement?.scrollTop || 0;
   const canvasOffsetX = canvasRect.left - containerRect.left + scrollLeft;
   const canvasOffsetY = canvasRect.top - containerRect.top + scrollTop;
+
+  // Badge coordinates are in canvas space, multiply by scale for screen space
+  const scaledX = badge.x * scale;
+  const scaledY = badge.y * scale;
+  const scaledWidth = Math.max(badge.width * scale, 120);
+  const scaledHeight = badge.height * scale;
 
   const input = document.createElement('input');
   input.id = 'wireframe-label-editor';
@@ -220,17 +229,17 @@ function showLabelEditor(badge: BadgeInfo): void {
   input.placeholder = 'Empty to hide';
   input.style.cssText = `
     position: absolute;
-    left: ${canvasOffsetX + badge.x}px;
-    top: ${canvasOffsetY + badge.y}px;
-    min-width: ${Math.max(badge.width, 120)}px;
-    height: ${badge.height}px;
+    left: ${canvasOffsetX + scaledX}px;
+    top: ${canvasOffsetY + scaledY}px;
+    min-width: ${scaledWidth}px;
+    height: ${scaledHeight}px;
     padding: 0 6px;
     border: 2px solid #2563eb;
     border-radius: 3px;
     background: #333;
     color: #fff;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 11px;
+    font-size: ${Math.max(9, 11 * scale)}px;
     outline: none;
     z-index: 1000002;
   `;
@@ -306,28 +315,48 @@ function createOverlay(): void {
     min-height: 100%;
     display: flex;
     justify-content: center;
-    padding: 40px 20px;
+    align-items: flex-start;
+    padding: 40px;
     box-sizing: border-box;
     position: relative;
   `;
-  canvasContainer.appendChild(canvas);
   state.canvasContainer = canvasContainer;
 
-  // Add shadow to canvas for visual separation
+  // Calculate scale to fit viewport (with padding)
+  const padding = 40;
+  const availableWidth = window.innerWidth - padding * 2;
+  const availableHeight = window.innerHeight - padding * 2 - 60; // 60px for controls
+  const scaleX = availableWidth / canvas.width;
+  const scaleY = availableHeight / canvas.height;
+  const scale = Math.min(1, scaleX); // Only scale down, never up; prioritize width fit
+  state.canvasScale = scale;
+
+  // Apply scale via CSS transform (keeps full resolution for export)
   canvas.style.cssText += `
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     border-radius: 8px;
+    transform: scale(${scale});
+    transform-origin: top center;
   `;
+
+  // Wrap canvas in a sizer div to account for scaled dimensions
+  const canvasSizer = document.createElement('div');
+  canvasSizer.style.cssText = `
+    width: ${canvas.width * scale}px;
+    height: ${canvas.height * scale}px;
+    position: relative;
+  `;
+  canvasSizer.appendChild(canvas);
+  canvasContainer.appendChild(canvasSizer);
 
   // Add click handler for label editing
   canvas.addEventListener('click', (e) => {
     if (!state.showLabels) return;
 
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const canvasX = (e.clientX - rect.left) * scaleX;
-    const canvasY = (e.clientY - rect.top) * scaleY;
+    // Account for CSS transform scale
+    const canvasX = (e.clientX - rect.left) / state.canvasScale;
+    const canvasY = (e.clientY - rect.top) / state.canvasScale;
 
     const badge = findBadgeAtPosition(canvasX, canvasY);
     if (badge) {
@@ -375,6 +404,7 @@ function removeOverlay(): void {
     state.canvasContainer = null;
     state.badges = [];
     state.labelOverrides.clear();
+    state.canvasScale = 1;
     console.log('[Wireframe Mapper] Overlay closed.');
   }
 }
