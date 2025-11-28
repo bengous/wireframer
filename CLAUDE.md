@@ -31,11 +31,7 @@ For iterative development, use the Tampermonkey userscript for a faster edit-tes
 
 **Development session:**
 ```bash
-# Terminal 1: Watch for file changes and rebuild
-pnpm run watch
-
-# Terminal 2: Serve the built JS on port 9876
-pnpm run serve
+pnpm run dev    # Starts watch + server in one command
 ```
 
 Then press **Alt+W** on any page to trigger the wireframe tool. Edit code, save, press Alt+W again.
@@ -50,6 +46,8 @@ src/*.ts → esbuild (watch) → dist/wireframe-mapper.js → dev server :9876
 ```
 
 The userscript fetches fresh JS on every Alt+W press, so changes appear immediately without manual copy-paste or page reload.
+
+**Robustness:** The dev server automatically kills any existing process on port 9876, so you can restart freely without port conflicts.
 
 ## Architecture
 
@@ -75,7 +73,8 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
 - **main.ts**: Overlay UI, state management, event handlers. Auto-executes `createOverlay()` when script loads.
 
 **Dev tooling (scripts/):**
-- **dev-server.js**: Local HTTP server serving `dist/wireframe-mapper.js` with CORS headers
+- **dev.js**: Unified dev script that runs esbuild watch + dev server together
+- **dev-server.js**: Local HTTP server serving `dist/wireframe-mapper.js` with CORS headers (auto-kills existing process on port conflict)
 - **wireframe-mapper.user.js**: Tampermonkey userscript that fetches and injects the tool on Alt+W
 
 ### Key Design Decisions
