@@ -74,8 +74,15 @@ export async function generateModel(
 
 	try {
 		// Spawn Claude CLI with prompt piped via stdin
+		// Use --tools "" to disable tools (faster, less context)
+		// Use --model sonnet for balance of speed and quality
 		const result = await new Promise<string>((resolve, reject) => {
-			const claude = spawn("claude", ["--print"], {
+			const claude = spawn("claude", [
+				"--print",
+				"--output-format", "json",
+				"--tools", "",
+				"--model", "sonnet"
+			], {
 				stdio: ["pipe", "pipe", "pipe"],
 				env: { ...process.env },
 			});
@@ -93,7 +100,18 @@ export async function generateModel(
 
 			claude.on("close", (code) => {
 				if (code === 0) {
-					resolve(stdout);
+					// Parse the JSON wrapper and extract result
+					try {
+						const wrapper = JSON.parse(stdout);
+						if (wrapper.is_error) {
+							reject(new Error(`Claude error: ${wrapper.result}`));
+						} else {
+							resolve(wrapper.result);
+						}
+					} catch {
+						// If not JSON, return raw output
+						resolve(stdout);
+					}
 				} else {
 					reject(
 						new Error(`Claude CLI exited with code ${code}: ${stderr}`)
