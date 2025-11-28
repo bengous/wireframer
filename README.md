@@ -1,0 +1,162 @@
+# Wireframe Mapper
+
+A browser-injectable tool that generates clean wireframe mockups from live websites. Analyze any page's DOM structure and export a presentation-ready wireframe image.
+
+**Use case**: Show clients your layout structure without revealing the actual implementation - like a reverse-engineered Figma/Excalidraw mockup.
+
+## Quick Start
+
+1. Build the project:
+```bash
+pnpm install
+pnpm run build
+```
+
+2. Open any website in Chrome/Firefox
+
+3. Open DevTools (F12) → Console tab
+
+4. Paste the contents of `dist/wireframe-mapper.js` and press Enter
+
+5. Use the overlay controls:
+   - **Labels: ON/OFF** - Toggle block labels
+   - **Export PNG** - Download wireframe as image
+   - **Close** (or Escape) - Exit overlay
+
+## Features
+
+- **Smart block detection** - Identifies meaningful structural elements, not every DOM node
+- **Heading-based labels** - Infers section names from H1-H3 headings (works with Tailwind/utility CSS)
+- **Full page capture** - Captures entire scrollable page, not just viewport
+- **PNG export** - Download wireframe with meaningful filename
+- **Clean output** - Filters out noise (45 elements → ~20 meaningful blocks)
+
+## Architecture
+
+```
+src/
+├── types.ts      # TypeScript interfaces (BoundingBox, WireframeNode, WireframeModel)
+├── analyzer.ts   # DOM traversal, filtering heuristics, label generation
+├── renderer.ts   # Canvas drawing, PNG export
+└── main.ts       # Entry point, overlay UI, state management
+```
+
+### Data Flow
+
+```
+DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas → PNG
+```
+
+## How It Works
+
+### 1. Element Selection (analyzer.ts)
+
+Not every DOM element becomes a wireframe block. The analyzer uses these heuristics:
+
+**Always included:**
+- Semantic landmarks: `<header>`, `<nav>`, `<main>`, `<section>`, `<article>`, `<aside>`, `<footer>`
+- Elements with ARIA landmark roles
+- Elements with structural class patterns (hero, card, feature, service, etc.)
+
+**Always skipped:**
+- Text elements: `<h1>`-`<h6>`, `<p>`, `<blockquote>`
+- Inline elements: `<span>`, `<a>`, `<em>`, `<strong>`
+- Media: `<img>`, `<svg>`, `<video>`, `<iframe>`
+- Form elements: `<input>`, `<button>`, `<form>`
+- Lists: `<ul>`, `<ol>`, `<li>`
+- Elements smaller than 100×100px
+
+**Conditionally included:**
+- Generic `<div>` elements only if:
+  - They have meaningful class names (not just utility classes)
+  - OR they occupy >10% of viewport area
+
+### 2. Label Generation
+
+Labels are determined in priority order:
+
+1. **Class patterns** - `.hero-section` → "Hero", `.service-card` → "Service"
+2. **Element ID** - `#pricing` → "Pricing"
+3. **ARIA role** - `role="banner"` → "Header"
+4. **Content inference** - First `<h1>`-`<h3>` inside the element
+5. **Semantic tag** - `<footer>` → "Footer"
+6. **Fallback** - "Block"
+
+### 3. Wrapper Collapsing
+
+To avoid nested duplicates, parent elements are skipped when:
+- They have exactly one child
+- The child occupies >85% of parent's area
+- The child has a more meaningful label
+
+### 4. Rendering (renderer.ts)
+
+- **Canvas-based** for direct PNG export
+- **Depth-based styling**: thicker borders (3px) for top-level, thinner (1px) for nested
+- **Dashed borders** for non-landmark elements at depth > 0
+- **Rounded corners** (4px) for professional look
+- **Labels** positioned top-left inside each block
+
+## Configuration
+
+Default settings in `analyzer.ts`:
+
+```typescript
+const DEFAULT_CONFIG = {
+  minArea: 10000,           // Minimum element size (100×100px)
+  maxDepth: 3,              // Maximum nesting levels to traverse
+  viewportAreaThreshold: 0.05  // 5% of viewport = "significant"
+};
+```
+
+## Recognized Class Patterns
+
+The tool recognizes these class name patterns for automatic labeling:
+
+| Pattern | Label |
+|---------|-------|
+| `hero`, `hero-section` | Hero |
+| `card`, `card-grid` | Card, Cards |
+| `feature`, `features` | Feature, Features |
+| `service`, `services` | Service, Services |
+| `testimonial` | Testimonials |
+| `pricing` | Pricing |
+| `cta`, `call-to-action` | CTA |
+| `contact` | Contact |
+| `about` | About |
+| `team` | Team |
+| `faq` | FAQ |
+| `gallery` | Gallery |
+| `newsletter` | Newsletter |
+| `location`, `map` | Location, Map |
+
+## Development
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build (minified, for production use)
+pnpm run build
+
+# Build with sourcemaps (for debugging)
+pnpm run build:dev
+
+# Watch mode
+pnpm run watch
+```
+
+## Limitations
+
+- **No Shadow DOM** - Doesn't pierce shadow DOM boundaries
+- **No iframe content** - Iframes are shown as opaque boxes
+- **Static snapshot** - Captures current state, not dynamic content
+- **Tailwind-heavy sites** - Works but relies on heading inference for labels
+
+## Future Improvements
+
+- [ ] Excalidraw export format
+- [ ] Depth slider control
+- [ ] Custom label editing
+- [ ] Multiple viewport sizes
+- [ ] Bookmarklet version

@@ -1,0 +1,18 @@
+{
+  "name": "wireframe-mapper",
+  "version": "0.1.0",
+  "description": "DOM to wireframe mapper - generate clean mockups from live websites",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --minify --outfile=dist/wireframe-mapper.js --format=iife",
+    "build:dev": "esbuild src/main.ts --bundle --outfile=dist/wireframe-mapper.js --format=iife --sourcemap",
+    "watch": "esbuild src/main.ts --bundle --outfile=dist/wireframe-mapper.js --format=iife --watch",
+    "serve": "node scripts/dev-server.js",
+    "dev": "concurrently -k \"pnpm:watch\" \"pnpm:serve\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  }
+}
