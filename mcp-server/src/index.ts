@@ -3,7 +3,7 @@
  *
  * MCP server for AI-driven wireframe generation.
  * Uses Playwright for DOM extraction, Claude CLI for semantic understanding,
- * and node-canvas for rendering.
+ * and @napi-rs/canvas (Skia-based) for rendering.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

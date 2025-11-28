@@ -1,11 +1,11 @@
 /**
  * Canvas Renderer (Server-Side)
  *
- * Renders a WireframeModel to PNG using node-canvas.
+ * Renders a WireframeModel to PNG using @napi-rs/canvas (Skia-based).
  * Ported from src/renderer.ts for server-side rendering.
  */
 
-import { createCanvas, type Canvas, type CanvasRenderingContext2D } from "canvas";
+import { createCanvas, type Canvas, type SKRSContext2D } from "@napi-rs/canvas";
 import { writeFile, mkdir } from "fs/promises";
 import { dirname } from "path";
 import type {
@@ -65,7 +65,7 @@ function getFillColor(semanticType: SemanticType, depth: number): string {
  * Draw a rounded rectangle on canvas.
  */
 function drawRoundedRect(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	x: number,
 	y: number,
 	width: number,
@@ -89,7 +89,7 @@ function drawRoundedRect(
  * Draw a pill shape (rounded rectangle with full-radius ends).
  */
 function drawPillShape(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	x: number,
 	y: number,
 	width: number,
@@ -109,7 +109,7 @@ function drawPillShape(
  * Render an image placeholder (box with diagonal cross).
  */
 function renderImagePlaceholder(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	hint: ContentHint
 ): void {
 	const { x, y, width, height } = hint.bbox;
@@ -139,7 +139,7 @@ function renderImagePlaceholder(
  * Render a button placeholder (pill shape).
  */
 function renderButtonPlaceholder(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	hint: ContentHint
 ): void {
 	const { x, y, width, height } = hint.bbox;
@@ -183,7 +183,7 @@ function renderButtonPlaceholder(
  * Render a text block placeholder (horizontal lines).
  */
 function renderTextPlaceholder(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	hint: ContentHint
 ): void {
 	const { x, y, width, height } = hint.bbox;
@@ -220,7 +220,7 @@ function renderTextPlaceholder(
  * Render an icon placeholder (small circle).
  */
 function renderIconPlaceholder(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	hint: ContentHint
 ): void {
 	const { x, y, width, height } = hint.bbox;
@@ -243,7 +243,7 @@ function renderIconPlaceholder(
  * Render all content hints for a node.
  */
 function renderContentHints(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	hints: ContentHint[]
 ): void {
 	const typeOrder = { text: 0, image: 1, button: 2, icon: 3 };
@@ -273,7 +273,7 @@ function renderContentHints(
  * Render a label badge with solid dark background.
  */
 function renderLabelBadge(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	label: string,
 	x: number,
 	y: number,
@@ -317,7 +317,7 @@ function renderLabelBadge(
  * Render a single wireframe node.
  */
 function renderNode(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	node: WireframeNode,
 	config: RendererConfig
 ): void {
@@ -370,7 +370,7 @@ function renderNode(
  * Recursively render nodes.
  */
 function renderNodeTree(
-	ctx: CanvasRenderingContext2D,
+	ctx: SKRSContext2D,
 	nodes: WireframeNode[],
 	config: RendererConfig
 ): void {

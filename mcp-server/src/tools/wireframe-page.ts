@@ -4,7 +4,7 @@
  * Orchestrates the wireframe generation pipeline:
  * 1. Gather DOM data via Playwright
  * 2. Generate WireframeModel via Claude CLI
- * 3. Render to PNG via node-canvas
+ * 3. Render to PNG via @napi-rs/canvas
  */
 
 import { join } from "path";
@@ -80,7 +80,7 @@ export async function wireframePage(
 		options.outputPath ||
 		join(process.cwd(), ".wireframe", `wireframe-${Date.now()}.png`);
 
-	// 4. Render to PNG with node-canvas
+	// 4. Render to PNG with @napi-rs/canvas
 	logStep("Step 3/4: Rendering to PNG...");
 	await renderToFile(model, outputPath, {
 		showLabels,

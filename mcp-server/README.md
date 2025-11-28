@@ -24,14 +24,6 @@ pnpm build:mcp            # Build MCP server
 pnpm verify:mcp           # Verify build is correct
 ```
 
-### Canvas Native Module
-
-If you see `Cannot find module '../build/Release/canvas.node'`:
-
-```bash
-cd mcp-server && npm rebuild canvas
-```
-
 ## Usage
 
 ### As MCP Tool in Claude Code
@@ -73,8 +65,8 @@ Generate a wireframe of https://example.com
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Playwright │ ──▶ │   Claude    │ ──▶ │ node-canvas │ ──▶ │    PNG      │
-│  (DOM data) │     │  CLI (AI)   │     │  (render)   │     │   output    │
+│  Playwright │ ──▶ │   Claude    │ ──▶ │@napi-rs/   │ ──▶ │    PNG      │
+│  (DOM data) │     │  CLI (AI)   │     │ canvas     │     │   output    │
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
 ```
 
@@ -83,7 +75,7 @@ Generate a wireframe of https://example.com
 1. **DOM Extraction** (`dom-gatherer.ts`): Playwright navigates to URL, extracts element data via `page.evaluate()`
 2. **Prompt Building** (`prompt-builder.ts`): Formats DOM data into structured prompt for Claude
 3. **AI Analysis** (`model-generator.ts`): Claude CLI generates WireframeModel with semantic understanding
-4. **Rendering** (`canvas-renderer.ts`): node-canvas draws wireframe with semantic colors
+4. **Rendering** (`canvas-renderer.ts`): @napi-rs/canvas (Skia-based) draws wireframe with semantic colors
 
 ### Key Files
 

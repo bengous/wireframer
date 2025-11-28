@@ -134,14 +134,14 @@ pnpm verify:mcp          # Verify build is correct
 ### Architecture
 
 ```
-URL → Playwright (DOM extraction) → Claude CLI (semantic analysis) → node-canvas (render) → PNG
+URL → Playwright (DOM extraction) → Claude CLI (semantic analysis) → @napi-rs/canvas (render) → PNG
 ```
 
 **Key modules:**
 - **browser/dom-gatherer.ts**: Extracts DOM data via Playwright's `page.evaluate()`
 - **ai/prompt-builder.ts**: Builds structured prompts with DOM data for Claude
 - **ai/model-generator.ts**: Spawns Claude CLI to generate WireframeModel
-- **render/canvas-renderer.ts**: Server-side canvas rendering with node-canvas
+- **render/canvas-renderer.ts**: Server-side canvas rendering with @napi-rs/canvas (Skia-based)
 - **tools/wireframe-page.ts**: Orchestrates the full pipeline
 
 ### Claude CLI Integration

@@ -25,7 +25,7 @@ await build({
 	external: [
 		// Native modules that can't be bundled
 		"playwright",
-		"canvas",
+		"@napi-rs/canvas",
 		// MCP SDK (keep as external for cleaner output)
 		"@modelcontextprotocol/sdk",
 	],
