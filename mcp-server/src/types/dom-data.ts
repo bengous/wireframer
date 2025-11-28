@@ -5,7 +5,7 @@
  * This data is sent to Claude for semantic analysis.
  */
 
-import type { BoundingBox } from "../../../shared/types.js";
+import type { BoundingBox } from "@wireframe-mapper/shared";
 
 /**
  * Complete DOM data extracted from a page.

@@ -180,18 +180,18 @@ pnpm run serve       # Dev server only (no watch)
 An alternative approach using Claude AI for semantic understanding instead of heuristic-based DOM analysis.
 
 ```bash
-cd mcp-server
-pnpm install
-pnpm run build
+pnpm install        # Install workspace dependencies
+pnpm build:all      # Build everything
+pnpm verify:mcp     # Verify MCP build
 ```
 
-Configure in `.mcp.json`:
+Configure in `.mcp.json` (uses wrapper script for robustness):
 ```json
 {
   "mcpServers": {
     "wireframe-mapper": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-server/dist/index.js"]
+      "args": ["/path/to/wireframe-mapper/scripts/mcp-wrapper.js"]
     }
   }
 }

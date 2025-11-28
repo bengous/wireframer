@@ -1,7 +1,19 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
 	"files": {
-		"includes": ["src/**/*.ts", "scripts/**/*.js"]
+		"includes": [
+			"src/**/*.ts",
+			"packages/shared/src/**/*.ts",
+			"mcp-server/src/**/*.ts",
+			"scripts/**/*.js",
+			"mcp-server/scripts/**/*.js",
+			"mcp-server/build.js"
+		]
 	},
 	"formatter": {
 		"indentStyle": "tab",

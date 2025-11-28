@@ -9,7 +9,7 @@ import { spawn } from "child_process";
 import { writeFile, unlink } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
-import type { WireframeModel } from "../../../shared/types.js";
+import type { WireframeModel } from "@wireframe-mapper/shared";
 import type { DomData } from "../types/dom-data.js";
 import { buildPrompt } from "./prompt-builder.js";
 import { log, logError, logDebug } from "../utils/logger.js";

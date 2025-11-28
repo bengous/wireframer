@@ -14,7 +14,7 @@ import type {
 	SemanticType,
 	WireframeModel,
 	WireframeNode,
-} from "../../../shared/types.js";
+} from "@wireframe-mapper/shared";
 
 /** Pastel colors for semantic differentiation */
 const SEMANTIC_COLORS: Record<SemanticType, string> = {

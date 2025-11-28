@@ -12,11 +12,15 @@
     "lint": "biome check",
     "lint:fix": "biome check --write",
     "format": "biome format --write",
-    "mcp:build": "cd mcp-server && pnpm build",
-    "mcp:start": "cd mcp-server && node dist/index.js",
-    "mcp:dev": "cd mcp-server && pnpm dev"
+
+    "build:shared": "pnpm --filter @wireframe-mapper/shared build",
+    "build:mcp": "pnpm --filter wireframe-mapper-mcp build",
+    "build:all": "pnpm build:shared && pnpm build && pnpm build:mcp",
+    "verify:mcp": "pnpm --filter wireframe-mapper-mcp verify",
+    "clean": "rm -rf dist packages/shared/dist mcp-server/dist"
   },
   "devDependencies": {
+    "@wireframe-mapper/shared": "workspace:*",
     "@biomejs/biome": "^2.3.8",
     "esbuild": "^0.24.0",
     "typescript": "^5.7.2"

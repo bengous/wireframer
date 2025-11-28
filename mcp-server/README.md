@@ -10,10 +10,18 @@ MCP server for AI-driven wireframe generation. Uses Claude AI for semantic under
 
 ## Installation
 
+From workspace root:
+
 ```bash
-cd mcp-server
-pnpm install
-pnpm run build
+pnpm install              # Install all workspace dependencies
+pnpm build:all            # Build everything
+```
+
+Or just the MCP server:
+
+```bash
+pnpm build:mcp            # Build MCP server
+pnpm verify:mcp           # Verify build is correct
 ```
 
 ### Canvas Native Module
@@ -21,25 +29,27 @@ pnpm run build
 If you see `Cannot find module '../build/Release/canvas.node'`:
 
 ```bash
-npm rebuild canvas
+cd mcp-server && npm rebuild canvas
 ```
 
 ## Usage
 
 ### As MCP Tool in Claude Code
 
-Add to `.mcp.json` in your project root:
+Add to `.mcp.json` in your project root (uses wrapper script for robustness):
 
 ```json
 {
   "mcpServers": {
     "wireframe-mapper": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-server/dist/index.js"]
+      "args": ["/path/to/wireframe-mapper/scripts/mcp-wrapper.js"]
     }
   }
 }
 ```
+
+The wrapper script handles build path changes automatically.
 
 Then use in Claude Code:
 
@@ -139,9 +149,17 @@ PNGs are saved to `.wireframe/` directory in the current working directory by de
 
 ## Shared Types
 
-Types are shared with the browser tool via `../shared/types.ts`:
+Types are shared via workspace package `@wireframe-mapper/shared`:
+
+```typescript
+import type { WireframeModel } from "@wireframe-mapper/shared";
+```
+
+Available types:
 - `WireframeModel`
 - `WireframeNode`
 - `SemanticType`
 - `ContentType`
 - `ContentHint`
+- `BoundingBox`
+- `RendererConfig`

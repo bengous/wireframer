@@ -7,7 +7,7 @@
 
 import { chromium, type Browser } from "playwright";
 import type { DomData, DomElement } from "../types/dom-data.js";
-import type { BoundingBox } from "../../../shared/types.js";
+import type { BoundingBox } from "@wireframe-mapper/shared";
 import { log, logError } from "../utils/logger.js";
 
 /** Minimum element size to include (50x50 = 2500px²) */

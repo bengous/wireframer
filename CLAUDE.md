@@ -2,11 +2,29 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workspace Structure
+
+This is a pnpm workspace monorepo:
+
+| Package | Location | Purpose |
+|---------|----------|---------|
+| `wireframe-mapper` | root | Browser-injectable tool |
+| `@wireframe-mapper/shared` | `packages/shared/` | Shared TypeScript types |
+| `wireframe-mapper-mcp` | `mcp-server/` | MCP server for AI wireframes |
+
 ## Build Commands
 
 ```bash
-pnpm install              # Install dependencies
-pnpm run build            # Production build (minified IIFE)
+pnpm install              # Install all workspace dependencies
+pnpm build:all            # Build everything (shared → browser → mcp)
+pnpm build                # Build browser tool only
+pnpm build:shared         # Build shared types only
+pnpm build:mcp            # Build MCP server only
+pnpm verify:mcp           # Verify MCP build is correct
+pnpm clean                # Clean all build outputs
+```
+
+```bash
 pnpm run build:dev        # Development build with sourcemaps
 pnpm run watch            # Watch mode for development
 pnpm run serve            # Start local dev server on port 9876
@@ -109,9 +127,8 @@ An MCP server that uses Claude AI for semantic understanding instead of heuristi
 ### Build & Test
 
 ```bash
-cd mcp-server
-pnpm install
-pnpm run build
+pnpm build:mcp           # Build MCP server (uses esbuild + tsc)
+pnpm verify:mcp          # Verify build is correct
 ```
 
 ### Architecture
@@ -146,18 +163,30 @@ The `--setting-sources ""` flag is essential - without it, Claude CLI hangs when
 
 ### MCP Configuration
 
-Configured in `.mcp.json`:
+Uses a wrapper script for robustness - handles build path changes automatically:
+
 ```json
 {
   "mcpServers": {
     "wireframe-mapper": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-server/dist/index.js"]
+      "args": ["/path/to/wireframe-mapper/scripts/mcp-wrapper.js"]
     }
   }
 }
 ```
 
+The wrapper script (`scripts/mcp-wrapper.js`) is stable and checked into git. It finds the correct entry point even if build structure changes.
+
+### After MCP Changes
+
+1. `pnpm build:mcp` - rebuild
+2. `pnpm verify:mcp` - verify (runs automatically with build)
+3. Restart Claude Code to reload MCP
+
 ### Shared Types
 
-Types shared between browser tool and MCP server live in `shared/types.ts`. Both `src/types.ts` and MCP server import from there.
+Types are shared via workspace package `@wireframe-mapper/shared`. Both browser tool and MCP server import from it:
+```typescript
+import type { WireframeModel } from "@wireframe-mapper/shared";
+```
