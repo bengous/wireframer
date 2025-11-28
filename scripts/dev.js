@@ -15,8 +15,8 @@ console.log('\n  Wireframe Mapper Dev Mode');
 console.log('  ─────────────────────────\n');
 
 // Start esbuild watch (--watch=forever keeps watching even without stdin)
-const esbuild = spawn('npx', [
-  'esbuild',
+const esbuild = spawn('pnpm', [
+  'exec', 'esbuild',
   'src/main.ts',
   '--bundle',
   '--outfile=dist/wireframe-mapper.js',
