@@ -26,8 +26,11 @@ pnpm run build
 ## Features
 
 - **Smart block detection** - Identifies meaningful structural elements, not every DOM node
+- **Semantic color coding** - Different fill colors by element type (header, nav, hero, cards, CTA, footer)
 - **Heading-based labels** - Infers section names from H1-H3 headings (works with Tailwind/utility CSS)
+- **Inline label editing** - Click any label to edit; leave empty to hide
 - **Full page capture** - Captures entire scrollable page, not just viewport
+- **Auto-fit viewport** - Canvas scales to fit browser window; full resolution preserved for export
 - **PNG export** - Download wireframe with meaningful filename
 - **Clean output** - Filters out noise (45 elements → ~20 meaningful blocks)
 
@@ -92,10 +95,18 @@ To avoid nested duplicates, parent elements are skipped when:
 ### 4. Rendering (renderer.ts)
 
 - **Canvas-based** for direct PNG export
+- **Semantic colors**: Different fill colors by element type
+  - Header: Indigo tint (`#e8eaf6`)
+  - Navigation: Blue tint (`#e3f2fd`)
+  - Hero: Purple tint (`#f3e5f5`)
+  - Cards/Features: Yellow tint (`#fffde7`)
+  - CTA/Contact: Green tint (`#e8f5e9`)
+  - Footer: Gray tint (`#eceff1`)
+  - Content: Light gray (`#f5f5f5`)
 - **Depth-based styling**: thicker borders (3px) for top-level, thinner (1px) for nested
 - **Dashed borders** for non-landmark elements at depth > 0
 - **Rounded corners** (4px) for professional look
-- **Labels** positioned top-left inside each block
+- **Label badges**: Dark background (`#333`) with white text, high contrast, click to edit
 
 ## Configuration
 
@@ -168,6 +179,6 @@ pnpm run serve       # Dev server only (no watch)
 
 - [ ] Excalidraw export format
 - [ ] Depth slider control
-- [ ] Custom label editing
 - [ ] Multiple viewport sizes
 - [ ] Bookmarklet version
+- [ ] Content visualization (image placeholders, text lines, button shapes)

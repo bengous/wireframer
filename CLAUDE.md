@@ -62,15 +62,24 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
 ### Module Responsibilities
 
 **Source (src/):**
-- **types.ts**: Type definitions (`BoundingBox`, `WireframeNode`, `WireframeModel`, config interfaces)
+- **types.ts**: Type definitions (`BoundingBox`, `WireframeNode`, `WireframeModel`, `SemanticType`, `BadgeInfo`, config interfaces)
 - **analyzer.ts**: DOM traversal and element selection. Contains heuristics for:
   - Landmark detection (semantic tags + ARIA roles)
   - Class pattern matching for labels (`STRUCTURAL_CLASS_PATTERNS`)
   - Generic container filtering (`GENERIC_CONTAINER_PATTERNS`)
   - Wrapper collapse logic (skips parents when child occupies >85% area)
   - Heading-based label inference (falls back to h1-h3 content)
-- **renderer.ts**: Canvas drawing with depth-based visual styling (border thickness, dashed vs solid lines, fill darkening)
-- **main.ts**: Overlay UI, state management, event handlers. Auto-executes `createOverlay()` when script loads.
+  - Semantic type classification for color coding (`getSemanticType()`)
+- **renderer.ts**: Canvas drawing with:
+  - Semantic color fills (header=indigo, nav=blue, hero=purple, cards=yellow, cta=green, footer=gray)
+  - Depth-based visual styling (border thickness, dashed vs solid lines)
+  - Label badges with dark background (#333) and white text
+  - Badge position tracking for click detection
+- **main.ts**: Overlay UI, state management, event handlers:
+  - Auto-scales canvas to fit viewport (CSS transform, preserves full resolution for export)
+  - Inline label editing (click badge → input field → Enter/Escape)
+  - Label overrides stored in state (empty string hides badge)
+  - Auto-executes `createOverlay()` when script loads
 
 **Dev tooling (scripts/):**
 - **dev.js**: Unified dev script that runs esbuild watch + dev server together
@@ -84,3 +93,6 @@ DOM Tree → analyzeDom() → WireframeModel → renderWireframe() → Canvas �
 - Labels toggle off by default - wireframes are cleaner without them
 - Only "significant" elements become wireframe blocks - filtered by size (100x100px min), semantics, and class patterns
 - Depth limited to 3 levels to reduce noise
+- Semantic color coding makes different section types visually distinct
+- Canvas scales to fit viewport but exports at full resolution
+- Label editing uses inline input field (click badge to edit, empty to hide)
