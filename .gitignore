@@ -3,3 +3,16 @@ dist/
 *.log
 .DS_Store
 .playwright-mcp/
+
+# MCP server
+mcp-server/dist/
+mcp-server/node_modules/
+
+# Shared (compiled output)
+shared/*.js
+shared/*.js.map
+shared/*.d.ts
+shared/*.d.ts.map
+
+# Wireframe output
+.wireframe/
