@@ -63,8 +63,9 @@ For iterative development, use the Tampermonkey userscript for a faster edit-tes
 **One-time setup:**
 1. Install [Tampermonkey](https://www.tampermonkey.net/) browser extension
 2. Create new userscript (Tampermonkey icon → Create new script)
-3. Paste contents of `scripts/wireframe-mapper.user.js`
-4. Save (Ctrl+S)
+3. Run `bun run build:all` once
+4. Paste contents of `dist/wireframe-mapper.user.js`
+5. Save (Ctrl+S)
 
 **Development session:**
 ```bash

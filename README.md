@@ -154,9 +154,10 @@ bun run build    # Production build (minified)
 For rapid iteration, use the included Tampermonkey userscript:
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) browser extension
-2. Create new userscript and paste contents of `scripts/wireframe-mapper.user.js`
-3. Run `bun run dev`
-4. Press **Alt+W** on any page to trigger the wireframe tool
+2. Run `bun run build:all` once
+3. Create new userscript and paste contents of `dist/wireframe-mapper.user.js`
+4. Run `bun run dev`
+5. Press **Alt+W** on any page to trigger the wireframe tool
 
 Changes are picked up automatically - edit code, save, press Alt+W again.
 
