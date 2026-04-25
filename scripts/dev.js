@@ -45,7 +45,7 @@ esbuild.stderr.on("data", (data) => {
 
 // Start dev server after a short delay to let first build complete
 setTimeout(() => {
-  const server = spawn("node", ["scripts/dev-server.js"], {
+  const server = spawn("bun", ["scripts/dev-server.ts"], {
     cwd: ROOT,
     stdio: "inherit",
   });

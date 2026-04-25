@@ -12,7 +12,7 @@
     "build": "esbuild src/main.ts --bundle --minify --outfile=dist/wireframe-mapper.js --format=iife",
     "build:dev": "esbuild src/main.ts --bundle --outfile=dist/wireframe-mapper.js --format=iife --sourcemap",
     "watch": "esbuild src/main.ts --bundle --outfile=dist/wireframe-mapper.js --format=iife --watch",
-    "serve": "node scripts/dev-server.js",
+    "serve": "bun scripts/dev-server.ts",
     "dev": "node scripts/dev.js",
     "build:shared": "bun --filter @wireframe-mapper/shared build",
     "build:mcp": "bun --filter wireframe-mapper-mcp build",
