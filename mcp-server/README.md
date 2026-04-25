@@ -13,15 +13,15 @@ MCP server for AI-driven wireframe generation. Uses Claude AI for semantic under
 From workspace root:
 
 ```bash
-pnpm install              # Install all workspace dependencies
-pnpm build:all            # Build everything
+bun install               # Install all workspace dependencies
+bun run build:all         # Build everything
 ```
 
 Or just the MCP server:
 
 ```bash
-pnpm build:mcp            # Build MCP server
-pnpm verify:mcp           # Verify build is correct
+bun run build:mcp         # Build MCP server
+bun run verify:mcp        # Verify build is correct
 ```
 
 ## Usage
