@@ -251,7 +251,7 @@ function showLabelEditor(badge: BadgeInfo): void {
     z-index: 1000002;
   `;
 
-  const saveEdit = () => {
+  const saveEdit = (): void => {
     const newLabel = input.value.trim();
     if (newLabel !== badge.label) {
       state.labelOverrides.set(badge.nodeId, newLabel);
@@ -392,7 +392,7 @@ function createOverlay(): void {
   document.body.appendChild(overlay);
 
   // Handle escape key to close
-  const handleEscape = (e: KeyboardEvent) => {
+  const handleEscape = (e: KeyboardEvent): void => {
     if (e.key === "Escape") {
       removeOverlay();
       document.removeEventListener("keydown", handleEscape);
