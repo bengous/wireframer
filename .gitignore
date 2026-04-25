@@ -1,5 +1,5 @@
 # Dependencies
-node_modules/
+node_modules
 
 # Build outputs
 dist/
@@ -18,3 +18,8 @@ mcp-server/dist/
 
 # Debug
 ~/.wireframe-mapper/
+
+# Tooling state
+.mise/
+plans/
+.bun-forge/

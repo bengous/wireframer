@@ -1,0 +1,38 @@
+min_version: 2.1.2
+glob_matcher: doublestar
+no_tty: true
+output:
+  - summary
+  - failure
+  - execution_out
+
+pre-commit:
+  commands:
+    # Keep these globs aligned with the repo surfaces they protect.
+    # If the project layout changes, update these globs and the validation scripts together.
+    # `glob_matcher: doublestar` makes `**` match zero or more nested directories.
+    root-oxc:
+      glob:
+        - "src/**/*.ts"
+        - "scripts/**/*.ts"
+        - "packages/*/src/**/*.ts"
+        - "mcp-server/src/**/*.ts"
+      run: ./node_modules/.bin/oxlint -c .oxlintrc.jsonc --fix --quiet --format=unix {staged_files} && ./node_modules/.bin/oxfmt --write -c .oxfmtrc.jsonc {staged_files}
+      stage_fixed: true
+
+    typecheck:
+      glob:
+        - "src/**/*.ts"
+        - "scripts/**/*.ts"
+        - "packages/*/src/**/*.ts"
+        - "mcp-server/src/**/*.ts"
+      run: bun scripts/validation/typecheck-staged.ts
+    gitleaks:
+      run: gitleaks protect --staged --no-banner
+
+pre-push:
+  commands:
+    validate:
+      run: bun scripts/validation/validate-push.ts
+    gitleaks:
+      run: gitleaks detect --no-banner

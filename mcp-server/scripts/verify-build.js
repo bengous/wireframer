@@ -50,7 +50,7 @@ if (existsSync(MCP_CONFIG)) {
 const SHARED_DIST = resolve(ROOT, "packages/shared/dist/index.js");
 if (!existsSync(SHARED_DIST)) {
 	errors.push(
-		`Shared package not built. Run: pnpm --filter @wireframe-mapper/shared build`
+		`Shared package not built. Run: bun --filter @wireframe-mapper/shared build`
 	);
 } else {
 	console.log(`✓ Shared package built`);

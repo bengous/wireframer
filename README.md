@@ -8,8 +8,8 @@ A browser-injectable tool that generates clean wireframe mockups from live websi
 
 1. Build the project:
 ```bash
-pnpm install
-pnpm run build
+bun install
+bun run build
 ```
 
 2. Open any website in Chrome/Firefox
@@ -144,9 +144,9 @@ The tool recognizes these class name patterns for automatic labeling:
 ## Development
 
 ```bash
-pnpm install      # Install dependencies
-pnpm run dev      # Start dev mode (watch + server)
-pnpm run build    # Production build (minified)
+bun install      # Install dependencies
+bun run dev      # Start dev mode (watch + server)
+bun run build    # Production build (minified)
 ```
 
 ### Recommended: Tampermonkey Workflow
@@ -155,7 +155,7 @@ For rapid iteration, use the included Tampermonkey userscript:
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) browser extension
 2. Create new userscript and paste contents of `scripts/wireframe-mapper.user.js`
-3. Run `pnpm run dev`
+3. Run `bun run dev`
 4. Press **Alt+W** on any page to trigger the wireframe tool
 
 Changes are picked up automatically - edit code, save, press Alt+W again.
@@ -163,9 +163,9 @@ Changes are picked up automatically - edit code, save, press Alt+W again.
 ### Other Commands
 
 ```bash
-pnpm run build:dev   # Build with sourcemaps
-pnpm run watch       # Watch mode only (no server)
-pnpm run serve       # Dev server only (no watch)
+bun run build:dev   # Build with sourcemaps
+bun run watch       # Watch mode only (no server)
+bun run serve       # Dev server only (no watch)
 ```
 
 ## Limitations
@@ -180,9 +180,9 @@ pnpm run serve       # Dev server only (no watch)
 An alternative approach using Claude AI for semantic understanding instead of heuristic-based DOM analysis.
 
 ```bash
-pnpm install        # Install workspace dependencies
-pnpm build:all      # Build everything
-pnpm verify:mcp     # Verify MCP build
+bun install        # Install workspace dependencies
+bun run build:all   # Build everything
+bun run verify:mcp  # Verify MCP build
 ```
 
 Configure in `.mcp.json` (uses wrapper script for robustness):

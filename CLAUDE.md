@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Workspace Structure
 
-This is a pnpm workspace monorepo:
+This is a Bun workspace monorepo:
 
 | Package | Location | Purpose |
 |---------|----------|---------|
@@ -12,24 +12,43 @@ This is a pnpm workspace monorepo:
 | `@wireframe-mapper/shared` | `packages/shared/` | Shared TypeScript types |
 | `wireframe-mapper-mcp` | `mcp-server/` | MCP server for AI wireframes |
 
+The repo is provisioned by [bun-forge](https://github.com/b3ngous/bun-forge) (oxlint + oxfmt + lefthook + dependency-cruiser + knip + jscpd + mise). Bun is the only package manager — do not invoke `pnpm` or `npm`.
+
 ## Build Commands
 
 ```bash
-pnpm install              # Install all workspace dependencies
-pnpm build:all            # Build everything (shared → browser → mcp)
-pnpm build                # Build browser tool only
-pnpm build:shared         # Build shared types only
-pnpm build:mcp            # Build MCP server only
-pnpm verify:mcp           # Verify MCP build is correct
-pnpm clean                # Clean all build outputs
+bun install                # Install all workspace dependencies
+bun run build:all          # Build everything (shared → browser → mcp)
+bun run build              # Build browser tool only
+bun run build:shared       # Build shared types only
+bun run build:mcp          # Build MCP server only
+bun run verify:mcp         # Verify MCP build is correct
+bun run clean              # Clean all build outputs
 ```
 
 ```bash
-pnpm run build:dev        # Development build with sourcemaps
-pnpm run watch            # Watch mode for development
-pnpm run serve            # Start local dev server on port 9876
-pnpm run dev              # Watch + serve together (recommended for development)
+bun run build:dev          # Development build with sourcemaps
+bun run watch              # Watch mode for development
+bun run serve              # Start local dev server on port 9876
+bun run dev                # Watch + serve together (recommended for development)
 ```
+
+## Quality Commands
+
+```bash
+bun run typecheck          # TypeScript --noEmit
+bun run lint:errors        # OXLint
+bun run format             # OXFmt write
+bun run format:check       # OXFmt check (no write)
+bun run autofix            # OXLint --fix + OXFmt write
+bun run lint:arch          # dependency-cruiser
+bun run lint:dead          # knip (unused deps/files)
+bun run lint:dupes         # jscpd (duplicate code)
+bun run validate           # Run lint + format:check + typecheck + arch concurrently
+bun run validate:scale     # validate + dead/arch/dupes/links
+```
+
+Git hooks are managed by lefthook (`lefthook.yml`): pre-commit runs OXLint --fix, OXFmt, typecheck-staged and gitleaks; pre-push runs the full validate-push pipeline.
 
 Output goes to `dist/wireframe-mapper.js`.
 
@@ -49,7 +68,7 @@ For iterative development, use the Tampermonkey userscript for a faster edit-tes
 
 **Development session:**
 ```bash
-pnpm run dev    # Starts watch + server in one command
+bun run dev    # Starts watch + server in one command
 ```
 
 Then press **Alt+W** on any page to trigger the wireframe tool. Edit code, save, press Alt+W again.
@@ -127,8 +146,8 @@ An MCP server that uses Claude AI for semantic understanding instead of heuristi
 ### Build & Test
 
 ```bash
-pnpm build:mcp           # Build MCP server (uses esbuild + tsc)
-pnpm verify:mcp          # Verify build is correct
+bun run build:mcp        # Build MCP server (uses esbuild + tsc)
+bun run verify:mcp       # Verify build is correct
 ```
 
 ### Architecture
@@ -180,9 +199,11 @@ The wrapper script (`scripts/mcp-wrapper.js`) is stable and checked into git. It
 
 ### After MCP Changes
 
-1. `pnpm build:mcp` - rebuild
-2. `pnpm verify:mcp` - verify (runs automatically with build)
+1. `bun run build:mcp` - rebuild
+2. `bun run verify:mcp` - verify (runs automatically with build)
 3. Restart Claude Code to reload MCP
+
+The MCP server still runs under Node (`engines: node >= 20`) — `.mcp.json` invokes `node scripts/mcp-wrapper.js` because `@napi-rs/canvas` and `playwright` ship Node-targeted native bindings. Bun is used as the package manager / scripts runner only.
 
 ### Shared Types
 

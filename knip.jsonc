@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "ignoreBinaries": ["rg", "lsof", "kill", "gitleaks", "lychee"],
+  "ignoreWorkspaces": ["packages/shared", "mcp-server"],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "src/main.ts",
+        "scripts/dev.js",
+        "scripts/dev-server.js",
+        "scripts/mcp-wrapper.js",
+        "scripts/wireframe-mapper.user.js",
+        "scripts/validation/format-and-lint.ts",
+        "scripts/validation/typecheck-staged.ts",
+        "scripts/validation/validate-on-stop.ts",
+        "scripts/validation/validate-push.ts",
+        "scripts/validation/validate.ts",
+        "scripts/setup/bootstrap-git-config.ts",
+        "scripts/setup/bootstrap-prepare.ts",
+        "scripts/agents/sync-agents-md.ts",
+        "scripts/quality/audit-oxlint-rules.ts",
+        "scripts/quality/check-links-local.ts",
+        ".claude/hooks/guard-destructive.ts"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx,js,jsx,mjs,cjs}",
+        "scripts/**/*.{ts,tsx,js,jsx,mjs,cjs}",
+        ".claude/hooks/**/*.{ts,tsx,js,jsx,mjs,cjs}"
+      ]
+    }
+  }
+}
