@@ -1,19 +1,21 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
+
 /**
  * Unified dev script: runs esbuild watch + dev server in a single process.
- * Usage: node scripts/dev.js
+ * Usage: bun scripts/dev.ts
  */
 
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 
-const ROOT = join(import.meta.dirname, "..");
+const ROOT: string = join(import.meta.dirname, "..");
 
 console.log("\n  Wireframe Mapper Dev Mode");
 console.log("  ─────────────────────────\n");
 
-// Start esbuild watch (--watch=forever keeps watching even without stdin)
-const esbuild = spawn(
+// Start esbuild watch (--watch=forever keeps watching even without stdin).
+const esbuild: ChildProcess = spawn(
   "bunx",
   [
     "esbuild",
@@ -29,32 +31,31 @@ const esbuild = spawn(
   },
 );
 
-esbuild.stdout.on("data", (data) => {
+esbuild.stdout?.on("data", (data: Buffer) => {
   const msg = data.toString().trim();
-  if (msg) {
+  if (msg.length > 0) {
     console.log(`  [build] ${msg}`);
   }
 });
 
-esbuild.stderr.on("data", (data) => {
+esbuild.stderr?.on("data", (data: Buffer) => {
   const msg = data.toString().trim();
-  if (msg) {
+  if (msg.length > 0) {
     console.error(`  [build] ${msg}`);
   }
 });
 
-// Start dev server after a short delay to let first build complete
+// Start dev server after a short delay to let the first build complete.
 setTimeout(() => {
-  const server = spawn("bun", ["scripts/dev-server.ts"], {
+  const server: ChildProcess = spawn("bun", ["scripts/dev-server.ts"], {
     cwd: ROOT,
     stdio: "inherit",
   });
 
-  server.on("error", (err) => {
+  server.on("error", (err: Error) => {
     console.error(`  [server] Failed to start: ${err.message}`);
   });
 
-  // Clean up on exit
   process.on("SIGINT", () => {
     esbuild.kill();
     server.kill();
@@ -68,7 +69,7 @@ setTimeout(() => {
   });
 }, 500);
 
-esbuild.on("error", (err) => {
+esbuild.on("error", (err: Error) => {
   console.error(`  [build] Failed to start: ${err.message}`);
   process.exit(1);
 });

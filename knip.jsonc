@@ -6,7 +6,7 @@
     ".": {
       "entry": [
         "src/main.ts",
-        "scripts/dev.js",
+        "scripts/dev.ts",
         "scripts/dev-server.ts",
         "scripts/mcp-wrapper.js",
         "scripts/wireframe-mapper.user.js",

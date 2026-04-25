@@ -13,7 +13,7 @@
     "build:dev": "esbuild src/main.ts --bundle --outfile=dist/wireframe-mapper.js --format=iife --sourcemap",
     "watch": "esbuild src/main.ts --bundle --outfile=dist/wireframe-mapper.js --format=iife --watch",
     "serve": "bun scripts/dev-server.ts",
-    "dev": "node scripts/dev.js",
+    "dev": "bun scripts/dev.ts",
     "build:shared": "bun --filter @wireframe-mapper/shared build",
     "build:mcp": "bun --filter wireframe-mapper-mcp build",
     "build:all": "bun run build:shared && bun run build && bun run build:mcp",
