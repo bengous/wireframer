@@ -170,7 +170,7 @@ function renderButtonPlaceholder(ctx: CanvasRenderingContext2D, hint: ContentHin
   ctx.stroke();
 
   // Draw label if available
-  if (hint.label && width > 40) {
+  if (hint.label !== undefined && hint.label !== "" && width > 40) {
     ctx.font = `${Math.min(11, height - 6)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = "#333333";
     ctx.textBaseline = "middle";
@@ -370,7 +370,11 @@ function renderNode(
   ctx.setLineDash([]);
 
   // Draw content hints if enabled
-  if (config.showContentHints !== false && node.contentHints?.length) {
+  if (
+    config.showContentHints !== false &&
+    node.contentHints !== undefined &&
+    node.contentHints.length > 0
+  ) {
     renderContentHints(ctx, node.contentHints);
   }
 
