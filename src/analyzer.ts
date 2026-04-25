@@ -235,7 +235,7 @@ function isLandmark(el: HTMLElement): boolean {
   }
 
   const role = el.getAttribute("role");
-  if (role && LANDMARK_ROLES.has(role)) {
+  if (role !== null && role !== "" && LANDMARK_ROLES.has(role)) {
     return true;
   }
 
@@ -387,12 +387,12 @@ function detectGridItems(el: HTMLElement): HTMLElement[] | null {
  */
 function inferGridItemLabel(el: HTMLElement): string {
   const classLabel = getClassLabel(el);
-  if (classLabel) {
+  if (classLabel !== null && classLabel !== "") {
     return classLabel;
   }
 
   const contentLabel = inferLabelFromContent(el);
-  if (contentLabel) {
+  if (contentLabel !== null && contentLabel !== "") {
     return contentLabel;
   }
 
@@ -454,7 +454,7 @@ function isSignificant(el: HTMLElement, viewportArea: number, config: AnalyzerCo
 function inferLabelFromContent(el: HTMLElement): string | null {
   // Look for the first heading (h1-h3) inside this element
   const heading = el.querySelector("h1, h2, h3");
-  if (heading?.textContent) {
+  if (heading !== null && heading.textContent !== "") {
     const text = heading.textContent.trim();
     // Return first 20 chars max, clean it up
     if (text.length > 0 && text.length < 50) {
@@ -473,7 +473,7 @@ function generateLabel(el: HTMLElement): string {
 
   // 1. Check class patterns first (most specific)
   const classLabel = getClassLabel(el);
-  if (classLabel) {
+  if (classLabel !== null && classLabel !== "") {
     return classLabel;
   }
 
@@ -497,7 +497,7 @@ function generateLabel(el: HTMLElement): string {
 
   // 3. ARIA role
   const role = el.getAttribute("role");
-  if (role) {
+  if (role !== null && role !== "") {
     const roleLabels: Record<string, string> = {
       banner: "Header",
       navigation: "Navigation",
@@ -507,15 +507,16 @@ function generateLabel(el: HTMLElement): string {
       search: "Search",
       region: "Region",
     };
-    if (roleLabels[role]) {
-      return roleLabels[role];
+    const roleLabel = roleLabels[role];
+    if (roleLabel !== undefined && roleLabel !== "") {
+      return roleLabel;
     }
   }
 
   // 4. For sections/articles, try to infer from content (first heading)
   if (tagName === "section" || tagName === "article" || tagName === "div") {
     const contentLabel = inferLabelFromContent(el);
-    if (contentLabel) {
+    if (contentLabel !== null && contentLabel !== "") {
       return contentLabel;
     }
   }
@@ -530,8 +531,9 @@ function generateLabel(el: HTMLElement): string {
     aside: "Sidebar",
     footer: "Footer",
   };
-  if (tagLabels[tagName]) {
-    return tagLabels[tagName];
+  const tagLabel = tagLabels[tagName];
+  if (tagLabel !== undefined && tagLabel !== "") {
+    return tagLabel;
   }
 
   // 6. Final fallback
@@ -649,12 +651,10 @@ function detectContentHints(el: HTMLElement): ContentHint[] {
   }
 }
 
-function detectContentHintsUnsafe(el: HTMLElement): ContentHint[] {
-  const hints: ContentHint[] = [];
-  const counts: Record<ContentType, number> = { image: 0, button: 0, text: 0, icon: 0 };
+type AddHintFn = (type: ContentType, bbox: BoundingBox, label?: string) => void;
 
-  // Helper to add hint if within limits
-  const addHint = (type: ContentType, bbox: BoundingBox, label?: string) => {
+function makeAddHint(hints: ContentHint[], counts: Record<ContentType, number>): AddHintFn {
+  return (type: ContentType, bbox: BoundingBox, label?: string): void => {
     const minSize = CONTENT_MIN_SIZES[type];
     const maxCount = CONTENT_MAX_COUNTS[type];
 
@@ -669,8 +669,9 @@ function detectContentHintsUnsafe(el: HTMLElement): ContentHint[] {
     hints.push(hint);
     counts[type]++;
   };
+}
 
-  // Detect images: <img>, <picture>, <figure>, large <svg>
+function detectImages(el: HTMLElement, addHint: AddHintFn): void {
   const images = el.querySelectorAll("img, picture, figure");
   for (const img of images) {
     if (!(img instanceof HTMLElement)) {
@@ -679,32 +680,26 @@ function detectContentHintsUnsafe(el: HTMLElement): ContentHint[] {
     if (!isElementVisible(img)) {
       continue;
     }
-
-    const bbox = getAbsoluteBoundingBox(img);
-    addHint("image", bbox);
+    addHint("image", getAbsoluteBoundingBox(img));
   }
+}
 
-  // Large SVGs are images (small ones are icons, handled below)
-  const svgs = el.querySelectorAll("svg");
+function detectLargeSvgImages(svgs: NodeListOf<SVGSVGElement>, addHint: AddHintFn): void {
   for (const svg of svgs) {
     if (!(svg instanceof SVGElement)) {
       continue;
     }
-
     const rect = svg.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) {
       continue;
     }
-
-    const area = rect.width * rect.height;
-    if (area > 400) {
-      // Large SVG = image
-      const bbox = getElementBoundingBox(svg);
-      addHint("image", bbox);
+    if (rect.width * rect.height > 400) {
+      addHint("image", getElementBoundingBox(svg));
     }
   }
+}
 
-  // Detect buttons
+function detectButtons(el: HTMLElement, addHint: AddHintFn): void {
   const buttons = el.querySelectorAll("button, a, input[type='submit'], input[type='button']");
   for (const btn of buttons) {
     if (!(btn instanceof HTMLElement)) {
@@ -716,23 +711,24 @@ function detectContentHintsUnsafe(el: HTMLElement): ContentHint[] {
     if (!isElementVisible(btn)) {
       continue;
     }
-
-    const bbox = getAbsoluteBoundingBox(btn);
-    const label = btn.textContent?.trim().slice(0, 20) || undefined;
-    addHint("button", bbox, label);
+    const trimmed = btn.textContent.trim().slice(0, 20);
+    const label: string | undefined = trimmed === "" ? undefined : trimmed;
+    addHint("button", getAbsoluteBoundingBox(btn), label);
   }
+}
 
-  // Detect icons (small SVGs, icon fonts)
+function detectSvgIcons(svgs: NodeListOf<SVGSVGElement>, addHint: AddHintFn): void {
   for (const svg of svgs) {
     if (!(svg instanceof SVGElement)) {
       continue;
     }
     if (isIconElement(svg)) {
-      const bbox = getElementBoundingBox(svg);
-      addHint("icon", bbox);
+      addHint("icon", getElementBoundingBox(svg));
     }
   }
+}
 
+function detectIconFonts(el: HTMLElement, addHint: AddHintFn): void {
   const iconFonts = el.querySelectorAll("i, span");
   for (const icon of iconFonts) {
     if (!(icon instanceof HTMLElement)) {
@@ -744,51 +740,61 @@ function detectContentHintsUnsafe(el: HTMLElement): ContentHint[] {
     if (!isElementVisible(icon)) {
       continue;
     }
-
-    const bbox = getAbsoluteBoundingBox(icon);
-    addHint("icon", bbox);
+    addHint("icon", getAbsoluteBoundingBox(icon));
   }
+}
 
-  // Detect text blocks: collapse all <p> and headings into one hint
+function detectTextBlocks(el: HTMLElement, textCount: number, addHint: AddHintFn): void {
+  if (textCount >= CONTENT_MAX_COUNTS.text) {
+    return;
+  }
   const textElements = el.querySelectorAll("p, h1, h2, h3, h4, h5, h6");
-  if (textElements.length > 0 && counts.text < CONTENT_MAX_COUNTS.text) {
-    // Find bounding box that encompasses all text
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    let hasVisibleText = false;
-
-    for (const text of textElements) {
-      if (!(text instanceof HTMLElement)) {
-        continue;
-      }
-      if (!isElementVisible(text)) {
-        continue;
-      }
-
-      const rect = text.getBoundingClientRect();
-      if (rect.width < 20 || rect.height < 10) {
-        continue;
-      }
-
-      hasVisibleText = true;
-      const bbox = getAbsoluteBoundingBox(text);
-      minX = Math.min(minX, bbox.x);
-      minY = Math.min(minY, bbox.y);
-      maxX = Math.max(maxX, bbox.x + bbox.width);
-      maxY = Math.max(maxY, bbox.y + bbox.height);
-    }
-
-    if (hasVisibleText && minX !== Infinity) {
-      addHint("text", {
-        x: minX,
-        y: minY,
-        width: maxX - minX,
-        height: maxY - minY,
-      });
-    }
+  if (textElements.length === 0) {
+    return;
   }
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let hasVisibleText = false;
+
+  for (const text of textElements) {
+    if (!(text instanceof HTMLElement)) {
+      continue;
+    }
+    if (!isElementVisible(text)) {
+      continue;
+    }
+    const rect = text.getBoundingClientRect();
+    if (rect.width < 20 || rect.height < 10) {
+      continue;
+    }
+    hasVisibleText = true;
+    const bbox = getAbsoluteBoundingBox(text);
+    minX = Math.min(minX, bbox.x);
+    minY = Math.min(minY, bbox.y);
+    maxX = Math.max(maxX, bbox.x + bbox.width);
+    maxY = Math.max(maxY, bbox.y + bbox.height);
+  }
+
+  if (hasVisibleText && minX !== Infinity) {
+    addHint("text", { x: minX, y: minY, width: maxX - minX, height: maxY - minY });
+  }
+}
+
+function detectContentHintsUnsafe(el: HTMLElement): ContentHint[] {
+  const hints: ContentHint[] = [];
+  const counts: Record<ContentType, number> = { image: 0, button: 0, text: 0, icon: 0 };
+  const addHint = makeAddHint(hints, counts);
+
+  detectImages(el, addHint);
+  const svgs = el.querySelectorAll("svg");
+  detectLargeSvgImages(svgs, addHint);
+  detectButtons(el, addHint);
+  detectSvgIcons(svgs, addHint);
+  detectIconFonts(el, addHint);
+  detectTextBlocks(el, counts.text, addHint);
 
   return hints;
 }
@@ -803,111 +809,129 @@ function bboxesSimilar(a: BoundingBox, b: BoundingBox): boolean {
 }
 
 /**
- * Recursively build wireframe nodes from DOM elements.
- * @param isGridItem - If true, this element is a grid item and bypasses normal filtering
+ * Collect child WireframeNodes from a grid container: process grid items as cards,
+ * then pass landmark children through normally.
  */
-function buildNodeTree(
+function collectGridChildNodes(
   el: HTMLElement,
+  gridItems: HTMLElement[],
   depth: number,
   viewportArea: number,
   config: AnalyzerConfig,
-  isGridItem: boolean = false,
-): WireframeNode | null {
-  // Grid items can exist at maxDepth (they're leaf nodes)
-  if (depth > config.maxDepth && !isGridItem) {
-    return null;
-  }
-  if (!isElementVisible(el)) {
-    return null;
-  }
-
-  const bbox = getAbsoluteBoundingBox(el);
-  // Grid items bypass normal significance filtering
-  const significant = isGridItem || isSignificant(el, viewportArea, config);
-
-  // Process children
+): WireframeNode[] {
   const childNodes: WireframeNode[] = [];
+  for (const gridChild of gridItems) {
+    const node = buildNodeTree(gridChild, depth + 1, viewportArea, config, true);
+    if (node) {
+      childNodes.push(node);
+    }
+  }
+  // Also process landmark children normally (they were excluded from gridItems)
+  for (const child of Array.from(el.children)) {
+    if (child instanceof HTMLElement && isLandmark(child)) {
+      const node = buildNodeTree(child, depth + 1, viewportArea, config, false);
+      if (node) {
+        childNodes.push(node);
+      }
+    }
+  }
+  return childNodes;
+}
 
-  // Check for grid container BEFORE normal child processing
-  const gridItems = significant && !isGridItem ? detectGridItems(el) : null;
-
-  if (gridItems) {
-    // Process grid items as cards (leaf nodes)
-    for (const gridChild of gridItems) {
-      const gridItemNode = buildNodeTree(
-        gridChild,
-        depth + 1,
+/**
+ * Collect child WireframeNodes via normal (non-grid) traversal.
+ */
+function collectNormalChildNodes(
+  el: HTMLElement,
+  depth: number,
+  significant: boolean,
+  viewportArea: number,
+  config: AnalyzerConfig,
+): WireframeNode[] {
+  const childNodes: WireframeNode[] = [];
+  for (const child of Array.from(el.children)) {
+    if (child instanceof HTMLElement) {
+      const node = buildNodeTree(
+        child,
+        significant ? depth + 1 : depth,
         viewportArea,
         config,
-        true, // Mark as grid item
+        false,
       );
-      if (gridItemNode) {
-        childNodes.push(gridItemNode);
-      }
-    }
-    // Also process landmark children normally (they were excluded from gridItems)
-    for (const child of Array.from(el.children)) {
-      if (child instanceof HTMLElement && isLandmark(child)) {
-        const landmarkNode = buildNodeTree(child, depth + 1, viewportArea, config, false);
-        if (landmarkNode) {
-          childNodes.push(landmarkNode);
-        }
-      }
-    }
-  } else if (!isGridItem) {
-    // Normal child processing (only if not a grid item - they're leaf nodes)
-    for (const child of Array.from(el.children)) {
-      if (child instanceof HTMLElement) {
-        const childNode = buildNodeTree(
-          child,
-          significant ? depth + 1 : depth,
-          viewportArea,
-          config,
-          false,
-        );
-        if (childNode) {
-          childNodes.push(childNode);
-        }
+      if (node) {
+        childNodes.push(node);
       }
     }
   }
+  return childNodes;
+}
 
-  // If this element isn't significant, bubble up children
-  if (!significant) {
-    if (childNodes.length === 1) {
-      return childNodes[0] ?? null;
-    }
-    if (childNodes.length > 1) {
-      // Return a virtual container? No, just return null
-      // The children will be captured by their significant ancestors
-    }
+/**
+ * Collect child nodes: dispatch to grid or normal traversal.
+ * Grid items are leaf nodes so they get no child traversal.
+ */
+function collectChildNodes(
+  el: HTMLElement,
+  depth: number,
+  significant: boolean,
+  viewportArea: number,
+  config: AnalyzerConfig,
+  isGridItem: boolean,
+  gridItems: HTMLElement[] | null,
+): WireframeNode[] {
+  if (gridItems) {
+    return collectGridChildNodes(el, gridItems, depth, viewportArea, config);
+  }
+  if (!isGridItem) {
+    return collectNormalChildNodes(el, depth, significant, viewportArea, config);
+  }
+  return [];
+}
+
+/**
+ * Wrapper collapse: return the sole child if it dominates the parent's area
+ * and carries more semantic meaning. Returns null if no collapse applies.
+ */
+function maybeCollapseToChild(
+  el: HTMLElement,
+  bbox: BoundingBox,
+  childNodes: WireframeNode[],
+  gridItems: HTMLElement[] | null,
+): WireframeNode | null {
+  if (childNodes.length !== 1 || gridItems) {
     return null;
   }
-
-  // Wrapper collapse: prefer child if it's more meaningful
-  // Skip collapse for grid containers - they need to show their structure
-  if (childNodes.length === 1 && !gridItems) {
-    const child = childNodes[0];
-    // If child takes up most of our space, use child instead
-    if (child && bboxesSimilar(bbox, child.bbox)) {
-      // But prefer landmarks over generic divs
-      if (!isLandmark(el) && child.isLandmark) {
-        return child;
-      }
-      // Prefer element with meaningful label
-      const myLabel = generateLabel(el);
-      if (myLabel === "Block" || myLabel === "Section") {
-        if (child.label !== "Block" && child.label !== "Section") {
-          return child;
-        }
-      }
-    }
+  const child = childNodes[0];
+  if (!child || !bboxesSimilar(bbox, child.bbox)) {
+    return null;
   }
+  if (!isLandmark(el) && child.isLandmark) {
+    return child;
+  }
+  const myLabel = generateLabel(el);
+  if (
+    (myLabel === "Block" || myLabel === "Section") &&
+    child.label !== "Block" &&
+    child.label !== "Section"
+  ) {
+    return child;
+  }
+  return null;
+}
 
-  // Create node for this element
+/**
+ * Construct the final WireframeNode for a significant element.
+ */
+function makeWireframeNode(
+  el: HTMLElement,
+  bbox: BoundingBox,
+  depth: number,
+  childNodes: WireframeNode[],
+  isGridItem: boolean,
+): WireframeNode {
   const label = isGridItem ? inferGridItemLabel(el) : generateLabel(el);
   const contentHints = detectContentHints(el);
-  const node: WireframeNode = {
+  return {
     id: generateNodeId(),
     tagName: el.tagName.toLowerCase(),
     label,
@@ -918,8 +942,50 @@ function buildNodeTree(
     semanticType: isGridItem ? "card" : getSemanticType(el, label),
     ...(contentHints.length > 0 ? { contentHints } : {}),
   };
+}
 
-  return node;
+/**
+ * Recursively build wireframe nodes from DOM elements.
+ * @param isGridItem - If true, this element is a grid item and bypasses normal filtering
+ */
+function buildNodeTree(
+  el: HTMLElement,
+  depth: number,
+  viewportArea: number,
+  config: AnalyzerConfig,
+  isGridItem: boolean = false,
+): WireframeNode | null {
+  if (depth > config.maxDepth && !isGridItem) {
+    return null;
+  }
+  if (!isElementVisible(el)) {
+    return null;
+  }
+
+  const bbox = getAbsoluteBoundingBox(el);
+  const significant = isGridItem || isSignificant(el, viewportArea, config);
+  const gridItems = significant && !isGridItem ? detectGridItems(el) : null;
+
+  const childNodes = collectChildNodes(
+    el,
+    depth,
+    significant,
+    viewportArea,
+    config,
+    isGridItem,
+    gridItems,
+  );
+
+  if (!significant) {
+    return childNodes.length === 1 ? (childNodes[0] ?? null) : null;
+  }
+
+  const collapsed = maybeCollapseToChild(el, bbox, childNodes, gridItems);
+  if (collapsed !== null) {
+    return collapsed;
+  }
+
+  return makeWireframeNode(el, bbox, depth, childNodes, isGridItem);
 }
 
 /**
