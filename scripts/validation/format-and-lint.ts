@@ -14,6 +14,15 @@ type Workspace = {
   readonly oxfmtConfig: string;
 };
 
+type HookOutput = {
+  decision?: "block";
+  reason?: string;
+  hookSpecificOutput?: {
+    hookEventName: "PostToolUse";
+    updatedToolOutput?: string;
+  };
+};
+
 const LINTABLE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs"]);
 const ROOT_WORKSPACE: Workspace = {
   oxlintConfig: ".oxlintrc.jsonc",
@@ -73,6 +82,14 @@ function blockingLines(output: string): string[] {
     .filter((line) => line !== "" && !SUMMARY_LINE.test(line) && !PHANTOM_WARNING.test(line));
 }
 
+async function readFileContent(filePath: string): Promise<string | null> {
+  try {
+    return await Bun.file(filePath).text();
+  } catch {
+    return null;
+  }
+}
+
 if (import.meta.main) {
   const projectRoot = resolveProjectRoot(import.meta.dir);
   const oxlint = resolveBin(projectRoot, "oxlint");
@@ -84,6 +101,8 @@ if (import.meta.main) {
   if (filePath === null || workspace === null) {
     process.exit(0);
   }
+
+  const preFormatContent = await readFileContent(filePath);
 
   Bun.spawnSync(
     [oxlint, ...workspace.oxlintArgs, "-c", workspace.oxlintConfig, "--fix", "--quiet", filePath],
@@ -111,6 +130,9 @@ if (import.meta.main) {
     { stdout: "pipe", stderr: "pipe" },
   );
 
+  const finalContent = preFormatContent !== null ? await readFileContent(filePath) : null;
+  const hookOutput: HookOutput = {};
+
   if (lint.exitCode !== 0) {
     const output = [lint.stderr.toString(), lint.stdout.toString()]
       .filter(Boolean)
@@ -118,7 +140,19 @@ if (import.meta.main) {
       .trim();
     const lines = blockingLines(output);
     if (lines.length > 0) {
-      console.log(JSON.stringify({ decision: "block", reason: lines.join("\n") }));
+      hookOutput.decision = "block";
+      hookOutput.reason = lines.join("\n");
     }
+  }
+
+  if (finalContent !== null && finalContent !== preFormatContent) {
+    hookOutput.hookSpecificOutput = {
+      hookEventName: "PostToolUse",
+      updatedToolOutput: finalContent,
+    };
+  }
+
+  if (Object.keys(hookOutput).length > 0) {
+    console.log(JSON.stringify(hookOutput));
   }
 }
