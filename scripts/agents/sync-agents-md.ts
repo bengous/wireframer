@@ -1,21 +1,21 @@
 #!/usr/bin/env bun
 
 /**
- * Mirrors Claude Code's native config into AGENTS.md for non-Claude AI agents
+ * Mirrors .claude/rules/ into nested AGENTS.md files for non-Claude AI agents
  * (Codex, OpenCode, etc.) that don't read .claude/rules/.
  *
  * ## Why this exists
  *
- * Claude Code loads CLAUDE.md + .claude/rules/ natively — it never reads AGENTS.md.
- * Other AI agents (Codex, OpenCode) don't understand .claude/rules/ but do walk
- * the directory tree loading AGENTS.md files. This script keeps them in sync so
- * all agents share the same source of truth.
+ * Every agent, Claude Code included, reads the hand-edited root ./AGENTS.md.
+ * Claude Code also loads .claude/rules/ natively; other AI agents (Codex,
+ * OpenCode) don't, but do walk the directory tree loading AGENTS.md files.
+ * This script keeps those nested files in sync with the rules so all agents
+ * share the same source of truth.
  *
  * ## Mapping
  *
  *   Source (Claude Code native)      → Generated (for other agents)
  *   ──────────────────────────────────────────────────────────────
- *   CLAUDE.md                        → ./AGENTS.md
  *   .claude/rules/<rule>.md          → <dir>/AGENTS.md
  *
  * <dir> is the path prefix before the first glob wildcard in the rule's
@@ -44,7 +44,7 @@
  *
  * ## Manifest schema (.agents/agents-md-manifest.json)
  *
- *   { "generated": ["AGENTS.md", "src/cli/AGENTS.md", ...] }
+ *   { "generated": ["src/cli/AGENTS.md", ...] }
  *
  * Tracks all managed files. Used to detect stale files when rules are removed.
  *
@@ -59,9 +59,8 @@
  *
  * ## Usage
  *
- *   bun scripts/agents/sync-agents-md.ts --write                 # generate/update files
- *   bun scripts/agents/sync-agents-md.ts --check                 # verify no drift (default)
- *   bun scripts/agents/sync-agents-md.ts --write --preserve-root # keep existing root AGENTS.md
+ *   bun scripts/agents/sync-agents-md.ts --write   # generate/update files
+ *   bun scripts/agents/sync-agents-md.ts --check   # verify no drift (default)
  */
 
 import { Glob } from "bun";
@@ -69,7 +68,6 @@ import { lstat, mkdir, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 
 const RULES_DIR = ".claude/rules";
-const ROOT_MD = "CLAUDE.md";
 const ROOT_AGENTS_MD = "AGENTS.md";
 const MANIFEST_PATH = ".agents/agents-md-manifest.json";
 const MANAGED_AGENTS_GLOBS = ["src/*/AGENTS.md", "scripts/AGENTS.md", "scripts/*/AGENTS.md"];
@@ -199,8 +197,8 @@ async function writeLfFile(path: string, content: string): Promise<void> {
   await Bun.write(path, normalized);
 }
 
-async function listManagedAgentsPaths(includeRoot: boolean): Promise<string[]> {
-  const paths = includeRoot ? [ROOT_AGENTS_MD] : [];
+async function listManagedAgentsPaths(): Promise<string[]> {
+  const paths: string[] = [];
   const batches = await Promise.all(
     MANAGED_AGENTS_GLOBS.map(async (pattern) =>
       Array.fromAsync(new Glob(pattern).scan({ cwd: "." })),
@@ -344,7 +342,7 @@ async function checkSemanticContent(
   dirToRules: Map<string, { name: string; body: string }[]>,
   errors: string[],
 ): Promise<void> {
-  const layerPaths = [...generated].filter(([path]) => path !== ROOT_AGENTS_MD).map(([p]) => p);
+  const layerPaths = [...generated.keys()];
   const layerEntries = await Promise.all(
     layerPaths.map(async (path) => {
       const file = Bun.file(path);
@@ -375,21 +373,12 @@ async function runCheckMode(
 
 async function main(): Promise<void> {
   const mode: "write" | "check" = process.argv.includes("--write") ? "write" : "check";
-  const preserveRoot = process.argv.includes("--preserve-root");
 
   const { dirToRules } = await buildDirectoryMap();
-  const rootContent = normalizeNewlines(await Bun.file(ROOT_MD).text());
   const oldManifest = await readManifest();
-  const rootAgentsFile = Bun.file(ROOT_AGENTS_MD);
-  const rootExists = await rootAgentsFile.exists();
-  const rootWasManaged = oldManifest.generated.includes(ROOT_AGENTS_MD);
-  const preserveExistingRoot = preserveRoot && rootExists && !rootWasManaged;
-  const targetPaths = new Set<string>(preserveExistingRoot ? [] : [ROOT_AGENTS_MD]);
+  const targetPaths = new Set<string>();
 
   const generated = new Map<string, string>();
-  if (!preserveExistingRoot) {
-    generated.set(ROOT_AGENTS_MD, rootContent);
-  }
   for (const [dir, rules] of dirToRules) {
     const path = `${dir}/AGENTS.md`;
     targetPaths.add(path);
@@ -398,15 +387,15 @@ async function main(): Promise<void> {
 
   const stale = oldManifest.generated.filter((p) => !targetPaths.has(p));
   const errors: string[] = [];
-  const managedAgentsPaths = await listManagedAgentsPaths(!preserveExistingRoot);
+  const managedAgentsPaths = await listManagedAgentsPaths();
   const symlinkErrors = await Promise.all(managedAgentsPaths.map(ensureManagedPathIsRegularFile));
   for (const e of symlinkErrors) {
     if (e !== null) {
       errors.push(e);
     }
   }
-  if (await fileContainsCrlf(ROOT_MD)) {
-    errors.push(`${ROOT_MD}: must use LF line endings`);
+  if (await fileContainsCrlf(ROOT_AGENTS_MD)) {
+    errors.push(`${ROOT_AGENTS_MD}: must use LF line endings`);
   }
 
   if (mode === "write") {
